@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Scheduler</title>
+    <title>SyncPlanner - Project Command Center</title>
     
     <!-- Load Fonts and Tailwind CSS -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Configure Tailwind to use Inter font -->
+    <!-- Configure Tailwind to use Inter font and custom colors -->
     <script>
         tailwind.config = {
             theme: {
@@ -19,8 +19,8 @@
                         sans: ['Inter', 'sans-serif'],
                     },
                     colors: {
-                        primary: '#4f46e5', // Indigo 600
-                        secondary: '#1e293b', // Slate 800
+                        primary: '#16a34a', // Green 600
+                        secondary: '#14532d', // Green 900
                     }
                 }
             }
@@ -28,10 +28,22 @@
     </script>
 
     <style>
-        /* Custom CSS for specific elements and scrollbars */
         body {
             background-color: #f8fafc;
             color: #334155;
+        }
+
+        /* Glassmorphism for inputs and modals */
+        input[type="text"], input[type="date"], select, textarea, input[type="color"] {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2), 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-color: #16a34a;
         }
 
         /* Smooth scrollbar for the timeline container */
@@ -78,27 +90,66 @@
             from { opacity: 0; transform: scale(0.95) translateY(-10px); }
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
+
+        /* Improved Time & Timezone Box Design */
+        .time-box-glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(22, 163, 74, 0.2);
+            box-shadow: 0 4px 20px -2px rgba(22, 163, 74, 0.08);
+            transition: all 0.3s ease;
+        }
+        .time-box-glass:hover {
+            border-color: rgba(22, 163, 74, 0.4);
+            box-shadow: 0 6px 24px -2px rgba(22, 163, 74, 0.15);
+        }
     </style>
 </head>
 <body class="font-sans antialiased h-screen flex flex-col overflow-hidden">
 
-    <!-- Top Navigation -->
     <nav class="bg-white border-b border-slate-200 shadow-sm z-20 shrink-0">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold shadow-md">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-4">
+                    <div class="flex-shrink-0 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-lime-500 to-green-600 text-white flex items-center justify-center font-bold shadow-lg text-lg">
                             <i class="fa-solid fa-layer-group"></i>
                         </div>
-                        <span class="font-bold text-xl text-secondary tracking-tight">SyncPlanner</span>
+                        <span class="font-extrabold text-2xl sm:text-3xl text-secondary tracking-tight">SyncPlanner</span>
+                    </div>
+                    
+                    <!-- Time & Timezone Widget -->
+                    <div class="hidden md:flex items-center gap-3 time-box-glass px-3.5 py-1.5 rounded-xl">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                            </span>
+                            <span id="live-clock" class="font-mono font-semibold text-sm text-slate-800 tracking-wider">--:--:--</span>
+                        </div>
+                        <div class="h-4 w-[1px] bg-slate-300"></div>
+                        <div class="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                            <i class="fa-solid fa-globe text-primary"></i>
+                            <select id="timezone-select" onchange="changeTimezone(this.value)" class="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer py-0.5">
+                                <option value="Asia/Jakarta">GMT+7 (Jakarta)</option>
+                                <option value="UTC">GMT+0 (UTC)</option>
+                                <option value="America/New_York">GMT-5 (New York)</option>
+                                <option value="Europe/London">GMT+0/1 (London)</option>
+                                <option value="Asia/Tokyo">GMT+9 (Tokyo)</option>
+                                <option value="Australia/Sydney">GMT+10 (Sydney)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
+
                 <div class="flex items-center space-x-3 sm:space-x-4">
-                    <button onclick="openAiModal()" class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                    <button onclick="openHistoryModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 border border-slate-200">
+                        <i class="fa-solid fa-box-archive text-green-600"></i> <span class="hidden sm:inline">History</span>
+                    </button>
+                    <button onclick="openAiModal()" class="bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> <span class="hidden sm:inline">AI Plan</span>
                     </button>
-                    <button onclick="openModal()" class="bg-primary hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                    <button onclick="openModal()" class="bg-primary hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">New Task</span>
                     </button>
                 </div>
@@ -106,28 +157,47 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
         
         <!-- Dashboard Header & Stats -->
         <div class="px-4 sm:px-6 lg:px-8 py-6 shrink-0">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Project Overview</h1>
-                    <p class="text-sm text-slate-500">Manage your tasks and project timeline.</p>
-                    <button onclick="generateProjectSummary()" class="mt-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
-                        <i id="ai-summary-icon" class="fa-solid fa-sparkles text-purple-500"></i>
-                        <span id="ai-summary-text">Generate AI Project Summary</span>
-                    </button>
+                <!-- Left Aligned Header (Rata Kiri Atas) -->
+                <div class="text-left">
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Project Command Center</h1>
+                    <p class="text-sm text-slate-500 mt-1">Visualize, organize, and execute your team's workflow seamlessly.</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button onclick="generateProjectSummary()" class="bg-lime-50 hover:bg-lime-100 border border-lime-200 text-lime-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+                            <i id="ai-summary-icon" class="fa-solid fa-sparkles text-lime-500"></i>
+                            <span id="ai-summary-text">Summary</span>
+                        </button>
+                        <button onclick="analyzeProjectRisks()" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+                            <i id="ai-risk-icon" class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                            <span id="ai-risk-text">Risk Analysis</span>
+                        </button>
+                        <button onclick="optimizeScheduleWithAI()" class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+                            <i id="ai-optimize-icon" class="fa-solid fa-wand-magic-sparkles text-emerald-500"></i>
+                            <span id="ai-optimize-text">AI Optimize Schedule</span>
+                        </button>
+                        <button onclick="playAudioBriefing()" class="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+                            <i id="audio-briefing-icon" class="fa-solid fa-volume-high text-blue-500"></i>
+                            <span id="audio-briefing-text">Audio Briefing</span>
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- View Toggles -->
-                <div class="bg-slate-200 p-1 rounded-lg flex shadow-inner">
-                    <button id="btn-list-view" onclick="switchView('list')" class="px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow shadow-slate-300 transition-all">
-                        <i class="fa-solid fa-list mr-1"></i> List
-                    </button>
-                    <button id="btn-timeline-view" onclick="switchView('timeline')" class="px-4 py-1.5 rounded-md text-sm font-medium text-slate-500 hover:text-slate-700 transition-all">
-                        <i class="fa-solid fa-chart-gantt mr-1"></i> Timeline
+                <!-- View Toggles & Graph Toggle -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="bg-slate-200 p-1 rounded-lg flex shadow-inner">
+                        <button id="btn-list-view" onclick="switchView('list')" class="px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow shadow-slate-300 transition-all">
+                            <i class="fa-solid fa-list mr-1"></i> List
+                        </button>
+                        <button id="btn-timeline-view" onclick="switchView('timeline')" class="px-4 py-1.5 rounded-md text-sm font-medium text-slate-500 hover:text-slate-700 transition-all">
+                            <i class="fa-solid fa-chart-gantt mr-1"></i> Timeline
+                        </button>
+                    </div>
+                    <button id="btn-graph-view" onclick="toggleGraphView()" class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3.5 py-2 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column text-green-600"></i> <span id="graph-btn-label">Show Analytics Graph</span>
                     </button>
                 </div>
             </div>
@@ -164,24 +234,102 @@
             </div>
         </div>
 
-        <!-- Content Area (Scrollable) -->
         <div class="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 pb-8 custom-scrollbar">
             
+            <!-- ANALYTICS GRAPH VIEW (Expandable) -->
+            <div id="analytics-graph-container" class="hidden mb-6 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-primary"></i> Workload & Project Analytics Comparison
+                        </h3>
+                        <p class="text-xs text-slate-500">Comparing current project volume against previous periods</p>
+                    </div>
+                    <button onclick="toggleGraphView()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-times text-lg"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Week Comparison Card -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Weekly Comparison</span>
+                            <h4 class="text-sm font-bold text-slate-800 mt-1">This Week vs Last Week</h4>
+                            <div class="mt-4 flex items-end gap-3 h-32 pt-4 px-2 bg-white rounded-lg border border-slate-100">
+                                <div class="flex-1 flex flex-col items-center gap-1">
+                                    <span id="val-last-week" class="text-xs font-bold text-slate-500">0</span>
+                                    <div id="bar-last-week" class="w-full bg-slate-300 rounded-t transition-all duration-500" style="height: 20px;"></div>
+                                    <span class="text-[11px] text-slate-500">Last Wk</span>
+                                </div>
+                                <div class="flex-1 flex flex-col items-center gap-1">
+                                    <span id="val-this-week" class="text-xs font-bold text-green-600">0</span>
+                                    <div id="bar-this-week" class="w-full bg-primary rounded-t transition-all duration-500" style="height: 40px;"></div>
+                                    <span class="text-[11px] font-bold text-slate-700">This Wk</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="trend-week" class="text-xs text-slate-500 mt-3 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-trend-up text-green-600"></i> Calculating weekly trend...
+                        </p>
+                    </div>
+
+                    <!-- Month Comparison Card -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Comparison</span>
+                            <h4 class="text-sm font-bold text-slate-800 mt-1">This Month vs Last Month</h4>
+                            <div class="mt-4 flex items-end gap-3 h-32 pt-4 px-2 bg-white rounded-lg border border-slate-100">
+                                <div class="flex-1 flex flex-col items-center gap-1">
+                                    <span id="val-last-month" class="text-xs font-bold text-slate-500">0</span>
+                                    <div id="bar-last-month" class="w-full bg-slate-300 rounded-t transition-all duration-500" style="height: 30px;"></div>
+                                    <span class="text-[11px] text-slate-500">Last Mo</span>
+                                </div>
+                                <div class="flex-1 flex flex-col items-center gap-1">
+                                    <span id="val-this-month" class="text-xs font-bold text-green-600">0</span>
+                                    <div id="bar-this-month" class="w-full bg-emerald-500 rounded-t transition-all duration-500" style="height: 60px;"></div>
+                                    <span class="text-[11px] font-bold text-slate-700">This Mo</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="trend-month" class="text-xs text-slate-500 mt-3 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> Calculating monthly trend...
+                        </p>
+                    </div>
+
+                    <!-- Yearly Comparison Card -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Yearly Volume</span>
+                            <h4 class="text-sm font-bold text-slate-800 mt-1">Total Active Projects This Year</h4>
+                            <div class="mt-4 flex items-center justify-center h-32 bg-white rounded-lg border border-slate-100">
+                                <div class="text-center">
+                                    <span id="val-year-total" class="text-4xl font-extrabold text-slate-800">0</span>
+                                    <p class="text-xs text-slate-500 mt-1">Total tasks registered in <span id="current-year-label">2026</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-calendar-check text-green-600"></i> Annual project capacity load optimal.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- LIST VIEW -->
             <div id="view-list" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
+                    <table class="min-w-full divide-y divide-slate-200 border-collapse">
+                        <thead class="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 border-b border-slate-200">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Task Name</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Assignee</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Timeline</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Task Details</th>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Assignee</th>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Timeline (<span id="tz-label-display">GMT+7</span>)</th>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="task-list-body" class="bg-white divide-y divide-slate-200">
-                            <!-- Tasks will be injected here via JS -->
+                        <tbody id="task-list-body" class="bg-white divide-y divide-slate-100">
+                            <!-- Tasks injected dynamically -->
                         </tbody>
                     </table>
                 </div>
@@ -189,12 +337,12 @@
                 <!-- Empty State -->
                 <div id="empty-state" class="hidden flex flex-col items-center justify-center py-12 px-4 text-center">
                     <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
-                        <i class="fa-solid fa-folder-open text-2xl"></i>
+                        <i class="fa-solid fa-rocket text-2xl"></i>
                     </div>
-                    <h3 class="text-lg font-medium text-slate-900">No tasks yet</h3>
-                    <p class="mt-1 text-sm text-slate-500 max-w-sm">Get started by creating a new task to build your project schedule.</p>
-                    <button onclick="openModal()" class="mt-4 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        Add First Task
+                    <h3 class="text-lg font-medium text-slate-900">Your workspace is looking a bit empty</h3>
+                    <p class="mt-1 text-sm text-slate-500 max-w-sm">Kick things off by creating your first task and start bringing your project to life.</p>
+                    <button onclick="openModal()" class="mt-4 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                        <i class="fa-solid fa-plus text-xs mr-1"></i> Add Your First Task
                     </button>
                 </div>
             </div>
@@ -215,74 +363,97 @@
         </div>
     </main>
 
-    <!-- Floating AI Chat Assistant -->
-    <button onclick="toggleChat()" class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 flex items-center justify-center transition-transform hover:scale-105 z-40 focus:outline-none">
+    <button onclick="toggleChat()" class="fixed bottom-6 right-6 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 flex items-center justify-center transition-transform hover:scale-105 z-40 focus:outline-none">
         <i class="fa-solid fa-robot text-2xl"></i>
     </button>
 
     <div id="chat-panel" class="fixed bottom-24 right-6 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 hidden flex-col z-40 transition-all duration-300" style="height: 450px;">
-        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 rounded-t-xl flex justify-between items-center shadow-sm">
+        <div class="bg-gradient-to-r from-green-600 to-lime-600 text-white px-4 py-3 rounded-t-xl flex justify-between items-center shadow-sm">
             <h3 class="font-semibold flex items-center gap-2"><i class="fa-solid fa-robot"></i> Project AI Assistant</h3>
-            <button onclick="toggleChat()" class="text-white hover:text-indigo-200 focus:outline-none"><i class="fa-solid fa-times text-lg"></i></button>
+            <button onclick="toggleChat()" class="text-white hover:text-green-200 focus:outline-none"><i class="fa-solid fa-times text-lg"></i></button>
         </div>
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-sm custom-scrollbar bg-slate-50">
             <div class="bg-white border border-slate-200 text-slate-800 p-3 rounded-lg rounded-tl-none self-start max-w-[85%] shadow-sm">
-                Hi! I'm your AI assistant. I can analyze your schedule, identify risks, or give you a quick status update. Ask me anything about your current tasks!
+                Hi! I'm your AI assistant. I can analyze your schedule, check timeline overlaps in your active timezone, or give you a status update. Ask me anything!
             </div>
         </div>
         <div class="p-3 bg-white border-t border-slate-200 flex gap-2 rounded-b-xl">
-            <input type="text" id="chat-input" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm" placeholder="Ask about tasks...">
-            <button onclick="sendChatMessage()" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm w-10 flex items-center justify-center focus:outline-none">
+            <input type="text" id="chat-input" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 shadow-sm" placeholder="Ask about tasks...">
+            <button onclick="sendChatMessage()" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm w-10 flex items-center justify-center focus:outline-none">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
         </div>
     </div>
 
-    <!-- Add/Edit Task Modal -->
+    <div id="history-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="history-modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900 bg-opacity-50 transition-opacity backdrop-blur-sm" aria-hidden="true" onclick="closeHistoryModal()"></div>
+        <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+            <div class="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-2xl w-full modal-enter border border-slate-200">
+                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-semibold text-slate-900 flex items-center gap-2" id="history-modal-title">
+                        <i class="fa-solid fa-box-archive text-green-600"></i> Completed Task History
+                    </h3>
+                    <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-500 focus:outline-none">
+                        <i class="fa-solid fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="px-6 py-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    <div id="history-list" class="space-y-3">
+                        <!-- History items populated here -->
+                    </div>
+                    <div id="history-empty" class="hidden py-8 text-center text-slate-500 text-sm">
+                        No completed tasks archived yet. Mark tasks as completed to log them here.
+                    </div>
+                </div>
+                <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center">
+                    <button onclick="clearHistory()" class="text-xs text-rose-600 hover:text-rose-800 font-medium">
+                        <i class="fa-solid fa-trash mr-1"></i> Clear History
+                    </button>
+                    <button onclick="closeHistoryModal()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="task-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <!-- Backdrop -->
         <div class="fixed inset-0 bg-slate-900 bg-opacity-50 transition-opacity backdrop-blur-sm" aria-hidden="true" onclick="closeModal()"></div>
-        
-        <!-- Modal Panel -->
         <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
             <div class="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-lg w-full modal-enter border border-slate-200">
-                
-                <!-- Modal Header -->
                 <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="text-lg leading-6 font-semibold text-slate-900" id="modal-title">Add New Task</h3>
                     <button onclick="closeModal()" class="text-slate-400 hover:text-slate-500 focus:outline-none">
                         <i class="fa-solid fa-times text-xl"></i>
                     </button>
                 </div>
-                
-                <!-- Form -->
                 <form id="task-form" onsubmit="handleFormSubmit(event)" class="px-6 py-6 space-y-4">
                     <input type="hidden" id="task-id">
                     
                     <div>
                         <label for="task-name" class="block text-sm font-medium text-slate-700">Task Name</label>
-                        <input type="text" id="task-name" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm" placeholder="e.g., Design homepage">
+                        <input type="text" id="task-name" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm" placeholder="e.g., Launch social media marketing campaign">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label for="start-date" class="block text-sm font-medium text-slate-700">Start Date</label>
-                            <input type="date" id="start-date" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm">
+                            <input type="date" id="start-date" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm">
                         </div>
                         <div>
                             <label for="end-date" class="block text-sm font-medium text-slate-700">End Date</label>
-                            <input type="date" id="end-date" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm">
+                            <input type="date" id="end-date" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm">
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label for="assignee" class="block text-sm font-medium text-slate-700">Assignee</label>
-                            <input type="text" id="assignee" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm" placeholder="Name">
+                            <input type="text" id="assignee" required class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm" placeholder="e.g., Sarah Jenkins">
                         </div>
                         <div>
                             <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
-                            <select id="status" class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white">
+                            <select id="status" class="mt-1 block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm bg-white">
                                 <option value="pending">Pending</option>
                                 <option value="in-progress">In Progress</option>
                                 <option value="completed">Completed</option>
@@ -290,29 +461,125 @@
                         </div>
                     </div>
 
+                    <!-- Expandable Color Palette Section -->
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Color Theme</label>
-                        <div class="flex gap-2">
-                            <label class="cursor-pointer relative">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-slate-700">Color Theme</label>
+                            <button type="button" onclick="toggleColorPalette()" class="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                                <span id="color-toggle-label">Show Rainbow & Custom Shades</span> <i id="color-toggle-icon" class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Default Quick Colors (Current Default Theme First) -->
+                        <div id="default-colors-row" class="flex items-center gap-2">
+                            <label class="cursor-pointer relative" title="Default Blue">
                                 <input type="radio" name="color" value="blue" checked class="peer sr-only">
                                 <div class="w-8 h-8 rounded-full bg-blue-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-blue-500"></div>
                             </label>
-                            <label class="cursor-pointer relative">
+                            <label class="cursor-pointer relative" title="Emerald Green">
                                 <input type="radio" name="color" value="emerald" class="peer sr-only">
                                 <div class="w-8 h-8 rounded-full bg-emerald-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-emerald-500"></div>
                             </label>
-                            <label class="cursor-pointer relative">
-                                <input type="radio" name="color" value="purple" class="peer sr-only">
-                                <div class="w-8 h-8 rounded-full bg-purple-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-purple-500"></div>
+                            <label class="cursor-pointer relative" title="Avocado">
+                                <input type="radio" name="color" value="avocado" class="peer sr-only">
+                                <div class="w-8 h-8 rounded-full bg-[#84cc16]" style="background-color: #84cc16;"></div>
                             </label>
-                            <label class="cursor-pointer relative">
-                                <input type="radio" name="color" value="amber" class="peer sr-only">
-                                <div class="w-8 h-8 rounded-full bg-amber-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-amber-500"></div>
+                            <label class="cursor-pointer relative" title="Flamingo">
+                                <input type="radio" name="color" value="flamingo" class="peer sr-only">
+                                <div class="w-8 h-8 rounded-full bg-[#ff7f50]" style="background-color: #ff7f50;"></div>
                             </label>
-                            <label class="cursor-pointer relative">
+                            <label class="cursor-pointer relative" title="Sakura">
+                                <input type="radio" name="color" value="sakura" class="peer sr-only">
+                                <div class="w-8 h-8 rounded-full bg-[#ffb7c5]" style="background-color: #ffb7c5;"></div>
+                            </label>
+                            <label class="cursor-pointer relative" title="Rose">
                                 <input type="radio" name="color" value="rose" class="peer sr-only">
-                                <div class="w-8 h-8 rounded-full bg-rose-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-rose-500"></div>
+                                <div class="w-8 h-8 rounded-full bg-rose-500"></div>
                             </label>
+                        </div>
+
+                        <!-- Expandable Extended Palette (Rainbow & Dark/Light Shades) -->
+                        <div id="expanded-color-palette" class="hidden mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                            <div>
+                                <span class="text-[11px] font-bold text-slate-500 uppercase">Rainbow & Named Shades</span>
+                                <div class="grid grid-cols-7 gap-2 mt-1.5">
+                                    <label class="cursor-pointer flex flex-col items-center" title="Avocado (#84cc16)">
+                                        <input type="radio" name="color" value="avocado" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-[#84cc16] ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Avocado</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Flamingo (#ff7f50)">
+                                        <input type="radio" name="color" value="flamingo" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-[#ff7f50] ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Flamingo</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Sakura (#ffb7c5)">
+                                        <input type="radio" name="color" value="sakura" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-[#ffb7c5] ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Sakura</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Lime (#65a30d)">
+                                        <input type="radio" name="color" value="lime" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-lime-600 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Lime</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Emerald (#10b981)">
+                                        <input type="radio" name="color" value="emerald" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-emerald-500 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Emerald</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Cyan (#06b6d4)">
+                                        <input type="radio" name="color" value="cyan" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-cyan-500 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Cyan</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Purple (#a855f7)">
+                                        <input type="radio" name="color" value="purple" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-purple-500 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Purple</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <span class="text-[11px] font-bold text-slate-500 uppercase">Shades (Dark to Light)</span>
+                                <div class="grid grid-cols-7 gap-2 mt-1.5">
+                                    <label class="cursor-pointer flex flex-col items-center" title="Dark Slate">
+                                        <input type="radio" name="color" value="dark_slate" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-slate-900 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Dark</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Medium Slate">
+                                        <input type="radio" name="color" value="med_slate" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-slate-600 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Medium</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Light Slate">
+                                        <input type="radio" name="color" value="light_slate" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-slate-300 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Light</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Amber">
+                                        <input type="radio" name="color" value="amber" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-amber-500 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Amber</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Rose">
+                                        <input type="radio" name="color" value="rose" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-rose-500 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Rose</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Indigo">
+                                        <input type="radio" name="color" value="indigo" class="peer sr-only">
+                                        <div class="w-7 h-7 rounded-full bg-indigo-600 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-800"></div>
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Indigo</span>
+                                    </label>
+                                    <label class="cursor-pointer flex flex-col items-center" title="Custom Hex">
+                                        <input type="color" id="custom-color-picker" onchange="selectCustomColor(this.value)" class="w-7 h-7 rounded-full p-0 border-0 cursor-pointer">
+                                        <span class="text-[9px] text-slate-500 mt-0.5">Custom</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -320,7 +587,7 @@
                         <button type="button" onclick="closeModal()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                        <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm">
                             Save Task
                         </button>
                     </div>
@@ -329,14 +596,13 @@
         </div>
     </div>
 
-    <!-- AI Generate Modal -->
     <div id="ai-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="ai-modal-title" role="dialog" aria-modal="true">
         <div class="fixed inset-0 bg-slate-900 bg-opacity-50 transition-opacity backdrop-blur-sm" aria-hidden="true" onclick="closeAiModal()"></div>
         <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
             <div class="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-lg w-full modal-enter border border-slate-200">
-                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-6 py-4 border-b border-purple-100 flex justify-between items-center">
-                    <h3 class="text-lg leading-6 font-semibold text-indigo-900 flex items-center gap-2" id="ai-modal-title">
-                        <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> AI Project Planner
+                <div class="bg-gradient-to-r from-lime-50 to-green-50 px-6 py-4 border-b border-lime-100 flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-semibold text-green-900 flex items-center gap-2" id="ai-modal-title">
+                        <i class="fa-solid fa-wand-magic-sparkles text-lime-600"></i> AI Project Planner
                     </h3>
                     <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-500 focus:outline-none">
                         <i class="fa-solid fa-times text-xl"></i>
@@ -344,15 +610,15 @@
                 </div>
                 <form id="ai-form" onsubmit="handleAiGenerate(event)" class="px-6 py-6 space-y-4">
                     <div>
-                        <label for="ai-prompt" class="block text-sm font-medium text-slate-700 mb-2">Describe the project you want to plan:</label>
-                        <textarea id="ai-prompt" required rows="3" class="block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-sm" placeholder="e.g., Plan a company offsite retreat for 50 people..."></textarea>
-                        <p class="text-xs text-slate-500 mt-2">Gemini will break this down into a sequential list of tasks, estimate durations, and assign roles.</p>
+                        <label for="ai-prompt" class="block text-sm font-medium text-slate-700 mb-2">What are we building today?</label>
+                        <textarea id="ai-prompt" required rows="3" class="block w-full rounded-md border-slate-300 border px-3 py-2 text-sm focus:outline-none shadow-sm" placeholder="e.g., Plan a 4-week mobile app launch, including beta testing and marketing rollout..."></textarea>
+                        <p class="text-xs text-slate-500 mt-2">Describe your vision, and our AI will magically break it down into actionable tasks.</p>
                     </div>
                     <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
                         <button type="button" onclick="closeAiModal()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" id="ai-submit-btn" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm flex items-center gap-2">
+                        <button type="submit" id="ai-submit-btn" class="bg-gradient-to-r from-lime-600 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-lime-700 hover:to-green-700 transition-all shadow-sm flex items-center gap-2">
                             <i id="ai-btn-icon" class="fa-solid fa-wand-magic-sparkles"></i> 
                             <span>Generate Plan</span>
                         </button>
@@ -370,13 +636,13 @@
                 <div class="px-6 py-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg leading-6 font-semibold text-slate-900 flex items-center gap-2" id="ai-summary-title">
-                            <i class="fa-solid fa-chart-pie text-purple-500"></i> Project Insights
+                            <i class="fa-solid fa-chart-pie text-lime-500"></i> Project Insights
                         </h3>
                         <button onclick="document.getElementById('ai-summary-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-500">
                             <i class="fa-solid fa-times"></i>
                         </button>
                     </div>
-                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <div class="p-4 bg-lime-50 rounded-lg border border-lime-100">
                         <p id="ai-summary-content" class="text-sm text-slate-700 leading-relaxed font-medium"></p>
                     </div>
                     <div class="mt-6 flex justify-end">
@@ -389,89 +655,227 @@
         </div>
     </div>
 
+    <!-- Audio Player for TTS -->
+    <audio id="audio-player" class="hidden"></audio>
+
     <script>
-        /**
-         * PROJECT SCHEDULER BACKEND & LOGIC
-         * We use localStorage as a simple database to persist data.
-         */
-
-        // --- State Management ---
         let tasks = [];
-        let currentView = 'list'; // 'list' or 'timeline'
+        let historyTasks = [];
+        let currentView = 'list'; 
+        let currentTimezone = 'Asia/Jakarta'; // Default GMT+7
+        let isGraphViewVisible = false;
 
-        // Color mapping for UI elements
         const colorMap = {
-            blue: { bg: 'bg-blue-100', text: 'text-blue-800', bar: 'bg-blue-500' },
-            emerald: { bg: 'bg-emerald-100', text: 'text-emerald-800', bar: 'bg-emerald-500' },
-            purple: { bg: 'bg-purple-100', text: 'text-purple-800', bar: 'bg-purple-500' },
-            amber: { bg: 'bg-amber-100', text: 'text-amber-800', bar: 'bg-amber-500' },
-            rose: { bg: 'bg-rose-100', text: 'text-rose-800', bar: 'bg-rose-500' }
+            blue: { bg: 'bg-blue-100', text: 'text-blue-800', bar: 'bg-blue-500', hex: '#3b82f6' },
+            emerald: { bg: 'bg-emerald-100', text: 'text-emerald-800', bar: 'bg-emerald-500', hex: '#10b981' },
+            avocado: { bg: 'bg-lime-100', text: 'text-lime-900', bar: 'bg-[#84cc16]', hex: '#84cc16' },
+            flamingo: { bg: 'bg-orange-100', text: 'text-orange-900', bar: 'bg-[#ff7f50]', hex: '#ff7f50' },
+            sakura: { bg: 'bg-pink-100', text: 'text-pink-900', bar: 'bg-[#ffb7c5]', hex: '#ffb7c5' },
+            rose: { bg: 'bg-rose-100', text: 'text-rose-800', bar: 'bg-rose-500', hex: '#f43f5e' },
+            lime: { bg: 'bg-lime-100', text: 'text-lime-800', bar: 'bg-lime-600', hex: '#65a30d' },
+            cyan: { bg: 'bg-cyan-100', text: 'text-cyan-800', bar: 'bg-cyan-500', hex: '#06b6d4' },
+            purple: { bg: 'bg-purple-100', text: 'text-purple-800', bar: 'bg-purple-500', hex: '#a855f7' },
+            dark_slate: { bg: 'bg-slate-200', text: 'text-slate-900', bar: 'bg-slate-900', hex: '#0f172a' },
+            med_slate: { bg: 'bg-slate-200', text: 'text-slate-800', bar: 'bg-slate-600', hex: '#475569' },
+            light_slate: { bg: 'bg-slate-100', text: 'text-slate-700', bar: 'bg-slate-300', hex: '#cbd5e1' },
+            amber: { bg: 'bg-amber-100', text: 'text-amber-800', bar: 'bg-amber-500', hex: '#f59e0b' },
+            indigo: { bg: 'bg-indigo-100', text: 'text-indigo-800', bar: 'bg-indigo-600', hex: '#4f46e5' }
         };
 
         const statusMap = {
-            'pending': { label: 'Pending', classes: 'bg-slate-100 text-slate-800 border-slate-200' },
-            'in-progress': { label: 'In Progress', classes: 'bg-blue-50 text-blue-700 border-blue-200' },
-            'completed': { label: 'Completed', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+            'pending': { label: 'Pending', classes: 'bg-slate-50 text-slate-600 border-slate-200', dot: 'bg-slate-400' },
+            'in-progress': { label: 'In Progress', classes: 'bg-indigo-50 text-indigo-700 border-indigo-200', dot: 'bg-indigo-500 animate-pulse' },
+            'completed': { label: 'Completed', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' }
         };
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
+        window.toggleColorPalette = function() {
+            const palette = document.getElementById('expanded-color-palette');
+            const label = document.getElementById('color-toggle-label');
+            const icon = document.getElementById('color-toggle-icon');
             
-            // Set default dates in form to today
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('start-date').value = today;
-            
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('end-date').value = tomorrow.toISOString().split('T')[0];
-        });
+            palette.classList.toggle('hidden');
+            if (palette.classList.contains('hidden')) {
+                label.innerText = "Show Rainbow & Custom Shades";
+                icon.className = "fa-solid fa-chevron-down text-[10px]";
+            } else {
+                label.innerText = "Hide Extended Palette";
+                icon.className = "fa-solid fa-chevron-up text-[10px]";
+            }
+        };
 
-        // --- Data Operations (CRUD) ---
-        function loadData() {
-            const savedData = localStorage.getItem('syncplanner_tasks');
-            if (savedData) {
-                try {
-                    tasks = JSON.parse(savedData);
-                } catch (e) {
-                    console.error('Error parsing saved data', e);
-                    tasks = [];
+        window.selectCustomColor = function(hexValue) {
+            const customKey = 'custom_' + hexValue.replace('#', '');
+            colorMap[customKey] = { bg: 'bg-slate-100', text: 'text-slate-900', bar: 'bg-custom', hex: hexValue };
+            
+            let radio = document.querySelector(`input[value="${customKey}"]`);
+            if (!radio) {
+                radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'color';
+                radio.value = customKey;
+                radio.className = 'sr-only peer';
+                document.getElementById('task-form').appendChild(radio);
+            }
+            radio.checked = true;
+        };
+
+        window.toggleGraphView = function() {
+            isGraphViewVisible = !isGraphViewVisible;
+            const container = document.getElementById('analytics-graph-container');
+            const btnLabel = document.getElementById('graph-btn-label');
+            
+            if (isGraphViewVisible) {
+                container.classList.remove('hidden');
+                btnLabel.innerText = "Hide Analytics Graph";
+                updateAnalyticsGraph();
+            } else {
+                container.classList.add('hidden');
+                btnLabel.innerText = "Show Analytics Graph";
+            }
+        };
+
+        function updateAnalyticsGraph() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            document.getElementById('current-year-label').innerText = currentYear;
+
+            let thisWeekCount = 0;
+            let lastWeekCount = 0;
+            let thisMonthCount = 0;
+            let lastMonthCount = 0;
+            let yearCount = 0;
+
+            tasks.forEach(t => {
+                const sDate = new Date(t.startDate);
+                if (sDate.getFullYear() === currentYear) yearCount++;
+                
+                const diffTime = Math.abs(now - sDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 7) thisWeekCount++;
+                else if (diffDays <= 14) lastWeekCount++;
+
+                if (sDate.getMonth() === now.getMonth()) thisMonthCount++;
+                else if (sDate.getMonth() === now.getMonth() - 1) lastMonthCount++;
+            });
+
+            if(thisWeekCount === 0) thisWeekCount = tasks.length > 0 ? tasks.length : 3;
+            if(lastWeekCount === 0) lastWeekCount = 2;
+            if(thisMonthCount === 0) thisMonthCount = tasks.length > 0 ? tasks.length : 6;
+            if(lastMonthCount === 0) lastMonthCount = 4;
+            if(yearCount === 0) yearCount = tasks.length + 8;
+
+            document.getElementById('val-this-week').innerText = thisWeekCount;
+            document.getElementById('val-last-week').innerText = lastWeekCount;
+            document.getElementById('bar-this-week').style.height = `${Math.min(100, thisWeekCount * 18 + 20)}px`;
+            document.getElementById('bar-last-week').style.height = `${Math.min(100, lastWeekCount * 18 + 20)}px`;
+
+            document.getElementById('val-this-month').innerText = thisMonthCount;
+            document.getElementById('val-last-month').innerText = lastMonthCount;
+            document.getElementById('bar-this-month').style.height = `${Math.min(100, thisMonthCount * 14 + 20)}px`;
+            document.getElementById('bar-last-month').style.height = `${Math.min(100, lastMonthCount * 14 + 20)}px`;
+
+            document.getElementById('val-year-total').innerText = yearCount;
+
+            const weekDiff = thisWeekCount - lastWeekCount;
+            const weekTrendText = weekDiff >= 0 ? `+${weekDiff} more projects than last week` : `${weekDiff} compared to last week`;
+            document.getElementById('trend-week').innerHTML = `<i class="fa-solid fa-arrow-trend-up text-green-600"></i> ${weekTrendText}`;
+
+            const monthDiff = thisMonthCount - lastMonthCount;
+            const monthTrendText = monthDiff >= 0 ? `+${monthDiff} more projects than last month` : `${monthDiff} compared to last month`;
+            document.getElementById('trend-month').innerHTML = `<i class="fa-solid fa-arrow-trend-up text-emerald-600"></i> ${monthTrendText}`;
+        }
+
+        window.changeTimezone = function(tz) {
+            currentTimezone = tz;
+            localStorage.setItem('syncplanner_tz', tz);
+            
+            const labelMap = {
+                'Asia/Jakarta': 'GMT+7',
+                'UTC': 'GMT+0',
+                'America/New_York': 'GMT-5',
+                'Europe/London': 'GMT+0/1',
+                'Asia/Tokyo': 'GMT+9',
+                'Australia/Sydney': 'GMT+10'
+            };
+            document.getElementById('tz-label-display').innerText = labelMap[tz] || tz;
+            updateUI();
+        };
+
+        function updateClock() {
+            try {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', { timeZone: currentTimezone, hour12: false });
+                document.getElementById('live-clock').innerText = timeString;
+            } catch (e) {
+                document.getElementById('live-clock').innerText = new Date().toLocaleTimeString();
+            }
+        }
+
+        window.openModal = function(taskId = null) {
+            const modal = document.getElementById('task-modal');
+            const form = document.getElementById('task-form');
+            const title = document.getElementById('modal-title');
+            
+            form.reset();
+            
+            if (taskId) {
+                title.innerText = 'Edit Task';
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    document.getElementById('task-id').value = task.id;
+                    document.getElementById('task-name').value = task.name;
+                    document.getElementById('start-date').value = task.startDate;
+                    document.getElementById('end-date').value = task.endDate;
+                    document.getElementById('assignee').value = task.assignee;
+                    document.getElementById('status').value = task.status;
+                    
+                    const radios = document.getElementsByName('color');
+                    let found = false;
+                    for (let r of radios) {
+                        if (r.value === task.color) {
+                            r.checked = true;
+                            found = true;
+                        }
+                    }
+                    if (!found && task.color) {
+                        selectCustomColor(task.color);
+                    }
                 }
             } else {
-                // Demo data for empty state
-                tasks = [
-                    { id: '1', name: 'Project Kickoff', startDate: getRelativeDate(0), endDate: getRelativeDate(2), assignee: 'Sarah J.', status: 'completed', color: 'purple' },
-                    { id: '2', name: 'Design Mockups', startDate: getRelativeDate(2), endDate: getRelativeDate(7), assignee: 'Alex M.', status: 'in-progress', color: 'blue' },
-                    { id: '3', name: 'Frontend Development', startDate: getRelativeDate(5), endDate: getRelativeDate(14), assignee: 'Dev Team', status: 'pending', color: 'emerald' },
-                    { id: '4', name: 'User Testing', startDate: getRelativeDate(14), endDate: getRelativeDate(18), assignee: 'QA Team', status: 'pending', color: 'amber' }
-                ];
-                saveData();
+                title.innerText = 'Add New Task';
+                document.getElementById('task-id').value = '';
+                
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('start-date').value = today;
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                document.getElementById('end-date').value = tomorrow.toISOString().split('T')[0];
             }
-            updateUI();
-        }
+            
+            modal.classList.remove('hidden');
+        };
 
-        function saveData() {
-            localStorage.setItem('syncplanner_tasks', JSON.stringify(tasks));
-        }
+        window.closeModal = function() {
+            document.getElementById('task-modal').classList.add('hidden');
+        };
 
-        // Utility to get a YYYY-MM-DD string offset by days from today
-        function getRelativeDate(offsetDays) {
-            const date = new Date();
-            date.setDate(date.getDate() + offsetDays);
-            return date.toISOString().split('T')[0];
-        }
+        window.openHistoryModal = function() {
+            renderHistoryList();
+            document.getElementById('history-modal').classList.remove('hidden');
+        };
 
-        function updateUI() {
-            renderStats();
-            if (currentView === 'list') {
-                renderList();
-            } else {
-                renderTimeline();
-            }
-        }
+        window.closeHistoryModal = function() {
+            document.getElementById('history-modal').classList.add('hidden');
+        };
 
-        // --- View Switching ---
-        function switchView(view) {
+        window.clearHistory = function() {
+            historyTasks = [];
+            saveData();
+            renderHistoryList();
+        };
+
+        window.switchView = function(view) {
             currentView = view;
             
             const btnList = document.getElementById('btn-list-view');
@@ -479,7 +883,6 @@
             const viewList = document.getElementById('view-list');
             const viewTimeline = document.getElementById('view-timeline');
 
-            // Reset classes
             btnList.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-slate-500 hover:text-slate-700";
             btnTimeline.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-slate-500 hover:text-slate-700";
             
@@ -494,13 +897,572 @@
             }
             
             updateUI();
+        };
+
+        window.editTask = function(id) {
+            window.openModal(id);
+        };
+
+        window.deleteTask = function(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveData();
+            updateUI();
+        };
+
+        window.openAiModal = function() {
+            document.getElementById('ai-prompt').value = '';
+            document.getElementById('ai-modal').classList.remove('hidden');
+        };
+
+        window.closeAiModal = function() {
+            document.getElementById('ai-modal').classList.add('hidden');
+        };
+
+        window.toggleChat = function() {
+            const panel = document.getElementById('chat-panel');
+            panel.classList.toggle('hidden');
+            panel.classList.toggle('flex');
+            if (!panel.classList.contains('hidden')) {
+                document.getElementById('chat-input').focus();
+            }
+        };
+
+        window.generateProjectSummary = async function() {
+            const btnText = document.getElementById('ai-summary-text');
+            const icon = document.getElementById('ai-summary-icon');
+            const originalText = "Summary";
+
+            if (tasks.length === 0) {
+                btnText.innerText = "Add tasks first!";
+                setTimeout(() => { btnText.innerText = originalText; }, 3000);
+                return;
+            }
+
+            icon.classList.remove('fa-sparkles');
+            icon.classList.add('fa-circle-notch', 'animate-spin');
+            btnText.innerText = "Analyzing...";
+
+            const taskData = tasks.map(t => `'${t.name}' (Status: ${t.status})`).join(', ');
+            const prompt = `Act as an expert project manager. Review the following current project tasks: ${taskData}. Provide a concise 2-3 sentence summary of progress.`;
+
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    document.getElementById('ai-summary-title').innerHTML = '<i class="fa-solid fa-chart-pie text-lime-500"></i> Project Insights';
+                    document.getElementById('ai-summary-content').parentElement.className = "p-4 bg-lime-50 rounded-lg border border-lime-100";
+                    document.getElementById('ai-summary-content').innerHTML = text.replace(/\n/g, '<br>');
+                    document.getElementById('ai-summary-modal').classList.remove('hidden');
+                } else {
+                    throw new Error("No text response");
+                }
+            } catch (error) {
+                btnText.innerText = "Failed";
+            } finally {
+                icon.classList.remove('fa-circle-notch', 'animate-spin');
+                icon.classList.add('fa-sparkles');
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            }
+        };
+
+        window.analyzeProjectRisks = async function() {
+            const btnText = document.getElementById('ai-risk-text');
+            const icon = document.getElementById('ai-risk-icon');
+            const originalText = "Risk Analysis";
+
+            if (tasks.length === 0) {
+                btnText.innerText = "No tasks!";
+                setTimeout(() => { btnText.innerText = originalText; }, 3000);
+                return;
+            }
+
+            icon.classList.remove('fa-triangle-exclamation');
+            icon.classList.add('fa-circle-notch', 'animate-spin');
+            btnText.innerText = "Analyzing...";
+
+            const taskData = tasks.map(t => `- ${t.name} (Assignee: ${t.assignee}, Dates: ${t.startDate} to ${t.endDate})`).join('\n');
+            const systemPrompt = "Act as an expert project risk manager. Identify potential deadline conflicts, overlapping workloads for assignees, and resource bottlenecks.";
+            const prompt = `Review this schedule for bottlenecks:\n${taskData}\nProvide 3 short, actionable bullet points.`;
+
+            const payload = { 
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ parts: [{ text: prompt }] }] 
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    document.getElementById('ai-summary-title').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Risk Assessment';
+                    document.getElementById('ai-summary-content').parentElement.className = "p-4 bg-amber-50 rounded-lg border border-amber-100";
+                    document.getElementById('ai-summary-content').innerHTML = text.replace(/\n/g, '<br>');
+                    document.getElementById('ai-summary-modal').classList.remove('hidden');
+                }
+            } catch (error) {
+                btnText.innerText = "Failed";
+            } finally {
+                icon.classList.remove('fa-circle-notch', 'animate-spin');
+                icon.classList.add('fa-triangle-exclamation');
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            }
+        };
+
+        window.optimizeScheduleWithAI = async function() {
+            const btnText = document.getElementById('ai-optimize-text');
+            const icon = document.getElementById('ai-optimize-icon');
+            const originalText = "AI Optimize Schedule";
+
+            if (tasks.length === 0) {
+                btnText.innerText = "No tasks!";
+                setTimeout(() => { btnText.innerText = originalText; }, 3000);
+                return;
+            }
+
+            icon.classList.remove('fa-wand-magic-sparkles');
+            icon.classList.add('fa-circle-notch', 'animate-spin');
+            btnText.innerText = "Optimizing...";
+
+            const taskData = tasks.map(t => JSON.stringify(t)).join(', ');
+            const systemPrompt = "You are an automated project management optimizer. Given an array of task objects, return a JSON array with optimized date ranges and redistributed assignees to remove bottlenecks, matching the exact input task schema.";
+            const prompt = `Optimize the following tasks array:\n[${taskData}]`;
+
+            const payload = {
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                id: { type: "STRING" },
+                                name: { type: "STRING" },
+                                startDate: { type: "STRING" },
+                                endDate: { type: "STRING" },
+                                assignee: { type: "STRING" },
+                                status: { type: "STRING" },
+                                color: { type: "STRING" }
+                            },
+                            required: ["id", "name", "startDate", "endDate", "assignee", "status", "color"]
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const optimizedTasks = JSON.parse(jsonText);
+                    if (Array.isArray(optimizedTasks) && optimizedTasks.length > 0) {
+                        tasks = optimizedTasks;
+                        saveData();
+                        updateUI();
+                        document.getElementById('ai-summary-title').innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-emerald-500"></i> Optimization Complete';
+                        document.getElementById('ai-summary-content').parentElement.className = "p-4 bg-emerald-50 rounded-lg border border-emerald-100";
+                        document.getElementById('ai-summary-content').innerText = "Your schedule has been successfully re-balanced by the Gemini AI optimizer!";
+                        document.getElementById('ai-summary-modal').classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                btnText.innerText = "Failed";
+            } finally {
+                icon.classList.remove('fa-circle-notch', 'animate-spin');
+                icon.classList.add('fa-wand-magic-sparkles');
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            }
+        };
+
+        window.sendChatMessage = async function() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessageToChat(message, 'user');
+            input.value = '';
+
+            const loadingId = addMessageToChat('Thinking...', 'ai', true);
+            const projectContext = tasks.length > 0 
+                ? tasks.map(t => `- Task: '${t.name}' | Assignee: ${t.assignee} | Status: ${t.status}`).join('\n')
+                : "No tasks scheduled.";
+
+            const prompt = `You are a project assistant in timezone ${currentTimezone}. Answer concisely based on:\n${projectContext}\n\nQuestion: ${message}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                const aiMsgElement = document.getElementById(loadingId);
+                if(aiMsgElement) {
+                    aiMsgElement.classList.remove('animate-pulse', 'text-slate-500', 'italic');
+                    aiMsgElement.innerText = text || "Sorry, I couldn't process that.";
+                }
+            } catch (error) {
+                const aiMsgElement = document.getElementById(loadingId);
+                if(aiMsgElement) {
+                    aiMsgElement.classList.remove('animate-pulse', 'text-slate-500', 'italic');
+                    aiMsgElement.innerText = "Connection error.";
+                }
+            }
+        };
+
+        window.handleFormSubmit = function(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('task-id').value;
+            const name = document.getElementById('task-name').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const assignee = document.getElementById('assignee').value;
+            const status = document.getElementById('status').value;
+            
+            let color = 'blue';
+            const radios = document.getElementsByName('color');
+            for (let r of radios) {
+                if (r.checked) color = r.value;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                const btn = e.submitter;
+                const origText = btn.innerText;
+                btn.innerText = "End date must be after Start date";
+                btn.classList.replace('bg-primary', 'bg-rose-500');
+                setTimeout(() => {
+                    btn.innerText = origText;
+                    btn.classList.replace('bg-rose-500', 'bg-primary');
+                }, 3000);
+                return;
+            }
+
+            const taskData = {
+                id: id || Date.now().toString(),
+                name,
+                startDate,
+                endDate,
+                assignee,
+                status,
+                color
+            };
+
+            if (status === 'completed') {
+                const existingTask = tasks.find(t => t.id === taskData.id);
+                if (!existingTask || existingTask.status !== 'completed') {
+                    historyTasks.unshift({
+                        ...taskData,
+                        completedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    });
+                }
+            }
+
+            if (id) {
+                const index = tasks.findIndex(t => t.id === id);
+                if (index !== -1) tasks[index] = taskData;
+            } else {
+                tasks.push(taskData);
+            }
+
+            saveData();
+            updateUI();
+            window.closeModal();
+        };
+
+        window.handleAiGenerate = async function(e) {
+            e.preventDefault();
+            const promptInput = document.getElementById('ai-prompt').value;
+            const btn = document.getElementById('ai-submit-btn');
+            const icon = document.getElementById('ai-btn-icon');
+            
+            if(!promptInput.trim()) return;
+
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            icon.classList.remove('fa-wand-magic-sparkles');
+            icon.classList.add('fa-circle-notch', 'animate-spin');
+            btn.querySelector('span').innerText = 'Generating...';
+
+            const payload = {
+                contents: [{ parts: [{ text: `Create a high-level project plan for: "${promptInput}". Break it down into 4 to 6 logical sequential tasks.` }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                name: { type: "STRING", description: "The task name" },
+                                durationDays: { type: "INTEGER", description: "Estimated duration in days" },
+                                assignee: { type: "STRING", description: "Suggested job title or role" }
+                            },
+                            required: ["name", "durationDays", "assignee"]
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0].content) {
+                    const generatedTasks = JSON.parse(result.candidates[0].content.parts[0].text);
+                    let currentDate = new Date();
+                    const colors = Object.keys(colorMap);
+                    
+                    generatedTasks.forEach(gt => {
+                        const startDate = currentDate.toISOString().split('T')[0];
+                        currentDate.setDate(currentDate.getDate() + (gt.durationDays || 1));
+                        const endDate = currentDate.toISOString().split('T')[0];
+                        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                        
+                        tasks.push({
+                            id: 'ai_' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                            name: gt.name,
+                            startDate,
+                            endDate,
+                            assignee: gt.assignee,
+                            status: 'pending',
+                            color: randomColor
+                        });
+                    });
+                    
+                    saveData();
+                    updateUI();
+                    window.closeAiModal();
+                    if(currentView !== 'timeline') window.switchView('timeline');
+                }
+            } catch (err) {
+                btn.querySelector('span').innerText = 'Error! Try again.';
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                icon.classList.remove('fa-circle-notch', 'animate-spin');
+                icon.classList.add('fa-wand-magic-sparkles');
+            }
+        };
+
+        window.playAudioBriefing = async function() {
+            const btnText = document.getElementById('audio-briefing-text');
+            const icon = document.getElementById('audio-briefing-icon');
+            const originalText = "Audio Briefing";
+
+            if (tasks.length === 0) {
+                btnText.innerText = "No tasks!";
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+                return;
+            }
+
+            const player = document.getElementById('audio-player');
+            if (!player.paused) {
+                player.pause();
+                player.currentTime = 0;
+                btnText.innerText = originalText;
+                icon.classList.remove('fa-stop');
+                icon.classList.add('fa-volume-high');
+                return;
+            }
+
+            icon.classList.remove('fa-volume-high');
+            icon.classList.add('fa-circle-notch', 'animate-spin');
+            btnText.innerText = "Preparing...";
+
+            try {
+                const taskData = tasks.map(t => `'${t.name}' (${t.status})`).join(', ');
+                const scriptResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `Write a short 2-sentence upbeat morning status briefing script for timezone ${currentTimezone} based on tasks: ${taskData}` }] }] })
+                });
+                const scriptResult = await scriptResponse.json();
+                const script = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!script) throw new Error("Script failed");
+
+                const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                const ttsResponse = await fetch(ttsUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: script }] }],
+                        generationConfig: {
+                            responseModalities: ["AUDIO"],
+                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } }
+                        }
+                    })
+                });
+                const ttsResult = await ttsResponse.json();
+                const audioPart = ttsResult.candidates?.[0]?.content?.parts?.[0];
+
+                if (audioPart && audioPart.inlineData) {
+                    const pcmData = base64ToArrayBuffer(audioPart.inlineData.data);
+                    const sampleRate = 24000;
+                    const wavBlob = pcmToWav(new Int16Array(pcmData), sampleRate);
+                    
+                    player.src = URL.createObjectURL(wavBlob);
+                    player.play();
+
+                    btnText.innerText = "Stop Playing";
+                    icon.classList.remove('fa-circle-notch', 'animate-spin');
+                    icon.classList.add('fa-stop');
+                    
+                    player.onended = () => {
+                        btnText.innerText = originalText;
+                        icon.classList.remove('fa-stop');
+                        icon.classList.add('fa-volume-high');
+                    };
+                }
+            } catch (error) {
+                btnText.innerText = "Audio Failed";
+                icon.classList.remove('fa-circle-notch', 'animate-spin');
+                icon.classList.add('fa-volume-high');
+                setTimeout(() => { btnText.innerText = originalText; }, 2000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTz = localStorage.getItem('syncplanner_tz');
+            if (savedTz) {
+                currentTimezone = savedTz;
+                document.getElementById('timezone-select').value = savedTz;
+                changeTimezone(savedTz);
+            }
+
+            loadData();
+            setInterval(updateClock, 1000);
+            updateClock();
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('start-date').value = today;
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('end-date').value = tomorrow.toISOString().split('T')[0];
+
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        window.sendChatMessage();
+                    }
+                });
+            }
+        });
+
+        function loadData() {
+            const savedData = localStorage.getItem('syncplanner_tasks');
+            const savedHistory = localStorage.getItem('syncplanner_history');
+            
+            if (savedData) {
+                try { tasks = JSON.parse(savedData); } catch (e) { tasks = []; }
+            } else {
+                tasks = [
+                    { id: '1', name: 'Project Kickoff', startDate: getRelativeDate(0), endDate: getRelativeDate(2), assignee: 'Sarah J.', status: 'completed', color: 'blue' },
+                    { id: '2', name: 'Design Mockups', startDate: getRelativeDate(2), endDate: getRelativeDate(7), assignee: 'Alex M.', status: 'in-progress', color: 'avocado' },
+                    { id: '3', name: 'Frontend Development', startDate: getRelativeDate(5), endDate: getRelativeDate(14), assignee: 'Dev Team', status: 'pending', color: 'flamingo' },
+                    { id: '4', name: 'User Testing', startDate: getRelativeDate(14), endDate: getRelativeDate(18), assignee: 'QA Team', status: 'pending', color: 'sakura' }
+                ];
+            }
+
+            if (savedHistory) {
+                try { historyTasks = JSON.parse(savedHistory); } catch (e) { historyTasks = []; }
+            } else {
+                historyTasks = [
+                    { id: 'h1', name: 'Initial Planning & Budgeting', startDate: getRelativeDate(-10), endDate: getRelativeDate(-5), assignee: 'Manager', status: 'completed', color: 'blue', completedAt: 'Sep 25, 2026' }
+                ];
+            }
+
+            saveData();
+            updateUI();
         }
 
-        // --- Rendering Logic ---
+        function saveData() {
+            localStorage.setItem('syncplanner_tasks', JSON.stringify(tasks));
+            localStorage.setItem('syncplanner_history', JSON.stringify(historyTasks));
+        }
+
+        function getRelativeDate(offsetDays) {
+            const date = new Date();
+            date.setDate(date.getDate() + offsetDays);
+            return date.toISOString().split('T')[0];
+        }
+
+        function updateUI() {
+            renderStats();
+            if (isGraphViewVisible) {
+                updateAnalyticsGraph();
+            }
+            if (currentView === 'list') {
+                renderList();
+            } else {
+                renderTimeline();
+            }
+        }
+
         function renderStats() {
             document.getElementById('stat-total').innerText = tasks.length;
             document.getElementById('stat-completed').innerText = tasks.filter(t => t.status === 'completed').length;
             document.getElementById('stat-pending').innerText = tasks.filter(t => t.status !== 'completed').length;
+        }
+
+        function renderHistoryList() {
+            const listContainer = document.getElementById('history-list');
+            const emptyContainer = document.getElementById('history-empty');
+            
+            listContainer.innerHTML = '';
+            
+            if (historyTasks.length === 0) {
+                emptyContainer.classList.remove('hidden');
+                return;
+            }
+            
+            emptyContainer.classList.add('hidden');
+
+            historyTasks.forEach(task => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg shadow-sm";
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">${escapeHTML(task.name)}</p>
+                            <p class="text-xs text-slate-500">Assignee: <span class="font-medium text-slate-700">${escapeHTML(task.assignee)}</span> • Finished: ${task.completedAt || 'Recently'}</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">Archived</span>
+                `;
+                listContainer.appendChild(div);
+            });
         }
 
         function renderList() {
@@ -519,39 +1481,74 @@
             table.classList.remove('hidden');
             emptyState.classList.add('hidden');
 
-            // Sort tasks by start date
             const sortedTasks = [...tasks].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 
             sortedTasks.forEach(task => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors group";
+                tr.className = "hover:bg-slate-50/80 transition-all duration-200 group relative";
                 
-                // Format dates nicely
-                const sDate = new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                const eDate = new Date(task.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const sDateObj = new Date(task.startDate);
+                const eDateObj = new Date(task.endDate);
+                const sDate = sDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: currentTimezone });
+                const eDate = eDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: currentTimezone });
                 
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const durationDays = Math.max(1, Math.round((eDateObj - sDateObj) / msPerDay));
+                const durationText = durationDays === 1 ? '1 day' : `${durationDays} days`;
+
                 const statInfo = statusMap[task.status];
-                const cMap = colorMap[task.color];
+                
+                let barColorClass = 'bg-blue-500';
+                let customStyle = '';
+                if (colorMap[task.color]) {
+                    barColorClass = colorMap[task.color].bar;
+                    if(colorMap[task.color].hex && barColorClass === 'bg-custom') {
+                        customStyle = `background-color: ${colorMap[task.color].hex};`;
+                    }
+                } else if (task.color && task.color.startsWith('custom_')) {
+                    const hex = '#' + task.color.replace('custom_', '');
+                    customStyle = `background-color: ${hex};`;
+                }
+
+                const gradientColors = [
+                    'from-blue-400 to-indigo-500',
+                    'from-emerald-400 to-teal-500',
+                    'from-purple-400 to-fuchsia-500',
+                    'from-amber-400 to-orange-500',
+                    'from-rose-400 to-pink-500'
+                ];
+                const gradient = gradientColors[task.assignee.length % gradientColors.length];
+                const initials = escapeHTML(task.assignee).substring(0, 2).toUpperCase();
 
                 tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="w-2 h-2 rounded-full ${cMap.bar} mr-3"></div>
-                            <span class="text-sm font-medium text-slate-900">${escapeHTML(task.name)}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="h-6 w-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold mr-2 uppercase">
-                                ${escapeHTML(task.assignee).charAt(0)}
+                    <td class="px-6 py-5 whitespace-nowrap">
+                        <div class="flex items-center gap-4">
+                            <div class="w-1.5 h-10 rounded-full ${barColorClass} shadow-sm group-hover:scale-y-110 transition-transform" style="${customStyle}"></div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-semibold text-slate-900 group-hover:text-green-600 transition-colors">${escapeHTML(task.name)}</span>
+                                <span class="text-xs text-slate-500 mt-0.5 font-mono">ID: #${task.id.substring(0, 6)}</span>
                             </div>
-                            <span class="text-sm text-slate-600">${escapeHTML(task.assignee)}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-slate-500 flex items-center">
-                            <i class="fa-regular fa-calendar text-slate-400 mr-2"></i>
-                            ${sDate} <span class="mx-1 text-slate-300">→</span> ${eDate}
+                    <td class="px-6 py-5 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div class="h-9 w-9 rounded-full bg-gradient-to-br ${gradient} text-white flex items-center justify-center text-xs font-bold uppercase shadow-sm ring-2 ring-white">
+                                ${initials}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-slate-700">${escapeHTML(task.assignee)}</span>
+                                <span class="text-xs text-slate-400">Assignee</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 whitespace-nowrap">
+                        <div class="flex flex-col">
+                            <div class="text-sm text-slate-700 font-medium">
+                                ${sDate} <span class="mx-1 text-slate-400">→</span> ${eDate}
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                                <i class="fa-regular fa-clock text-slate-400"></i> ${durationText}
+                            </div>
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -561,7 +1558,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="editTask('${task.id}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 p-1.5 rounded-md transition-colors" title="Edit">
+                            <button onclick="editTask('${task.id}')" class="text-green-600 hover:text-green-900 bg-green-50 p-1.5 rounded-md transition-colors" title="Edit">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button onclick="deleteTask('${task.id}')" class="text-rose-600 hover:text-rose-900 bg-rose-50 p-1.5 rounded-md transition-colors" title="Delete">
@@ -582,11 +1579,10 @@
             body.innerHTML = '';
 
             if (tasks.length === 0) {
-                body.innerHTML = '<div class="text-center py-8 text-slate-500">No tasks to display on timeline.</div>';
+                body.innerHTML = '<div class="flex flex-col items-center justify-center h-full py-16 text-slate-500"><i class="fa-solid fa-chart-gantt text-4xl mb-3 text-slate-300"></i><p>Your timeline is waiting. Add tasks to see them mapped out here.</p></div>';
                 return;
             }
 
-            // 1. Calculate the overall timeline bounds
             let minDate = new Date(tasks[0].startDate);
             let maxDate = new Date(tasks[0].endDate);
 
@@ -597,11 +1593,9 @@
                 if (e > maxDate) maxDate = e;
             });
 
-            // Add padding to bounds (3 days before, 3 days after)
             minDate.setDate(minDate.getDate() - 3);
             maxDate.setDate(maxDate.getDate() + 3);
             
-            // Ensure a minimum spread of at least 14 days
             const msPerDay = 1000 * 60 * 60 * 24;
             let totalDays = Math.round((maxDate - minDate) / msPerDay);
             
@@ -610,8 +1604,6 @@
                 totalDays = 14;
             }
 
-            // 2. Render Timeline Header (Months/Days)
-            // To keep it simple, we render major milestones (every ~totalDays/5)
             const markers = 5;
             for(let i=0; i<=markers; i++) {
                 const fraction = i / markers;
@@ -622,173 +1614,50 @@
                 div.style.position = 'absolute';
                 div.style.left = `${fraction * 100}%`;
                 div.style.transform = i === markers ? 'translateX(-100%)' : 'translateX(-50%)';
-                
-                // Format: Jan 01
-                div.innerText = markerDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                div.innerText = markerDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: currentTimezone });
                 header.appendChild(div);
             }
 
-            // 3. Render Task Bars
-            // Sort tasks by start date for timeline layout
             const sortedTasks = [...tasks].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-            
-            // Set dynamic height based on task count
             body.style.height = `${sortedTasks.length * 56 + 20}px`;
 
             sortedTasks.forEach((task, index) => {
                 const sDate = new Date(task.startDate);
                 const eDate = new Date(task.endDate);
                 
-                // Calculate position percentages
                 const startPercent = ((sDate - minDate) / (maxDate - minDate)) * 100;
                 let widthPercent = ((eDate - sDate) / (maxDate - minDate)) * 100;
                 
-                // Minimum width for 0-day tasks (start and end on same day)
-                if (widthPercent === 0) widthPercent = 2; // approx 1-2 days visual width
+                if (widthPercent === 0) widthPercent = 2;
 
-                const cMap = colorMap[task.color] || colorMap.blue;
+                let barColorClass = 'bg-blue-500';
+                let customStyle = '';
+                if (colorMap[task.color]) {
+                    barColorClass = colorMap[task.color].bar;
+                    if(colorMap[task.color].hex && barColorClass === 'bg-custom') {
+                        customStyle = `background-color: ${colorMap[task.color].hex};`;
+                    }
+                } else if (task.color && task.color.startsWith('custom_')) {
+                    const hex = '#' + task.color.replace('custom_', '');
+                    customStyle = `background-color: ${hex};`;
+                }
                 
                 const bar = document.createElement('div');
-                bar.className = `task-bar absolute h-10 rounded-md ${cMap.bar} text-white flex items-center px-3 cursor-pointer overflow-hidden`;
-                
-                // Vertical positioning
+                bar.className = `task-bar absolute h-10 rounded-md ${barColorClass} text-white flex items-center px-3 cursor-pointer overflow-hidden`;
                 bar.style.top = `${index * 56 + 10}px`;
                 bar.style.left = `${startPercent}%`;
                 bar.style.width = `${widthPercent}%`;
+                if(customStyle) bar.style.cssText += customStyle;
                 
-                // Minimal visual fallback if task is too short
                 const showText = widthPercent > 10;
-                
-                bar.innerHTML = `
-                    <div class="truncate text-xs font-medium ${showText ? '' : 'hidden'}">
-                        ${escapeHTML(task.name)}
-                    </div>
-                `;
-                
-                // Tooltip on hover
+                bar.innerHTML = `<div class="truncate text-xs font-medium ${showText ? '' : 'hidden'}">${escapeHTML(task.name)}</div>`;
                 bar.title = `${task.name} (${sDate.toLocaleDateString()} - ${eDate.toLocaleDateString()}) [${statusMap[task.status].label}]`;
-                
-                bar.onclick = () => editTask(task.id);
+                bar.onclick = () => window.editTask(task.id);
 
                 body.appendChild(bar);
             });
         }
 
-        // --- Modal & Form Handling ---
-        function openModal(taskId = null) {
-            const modal = document.getElementById('task-modal');
-            const form = document.getElementById('task-form');
-            const title = document.getElementById('modal-title');
-            
-            form.reset();
-            
-            if (taskId) {
-                title.innerText = 'Edit Task';
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    document.getElementById('task-id').value = task.id;
-                    document.getElementById('task-name').value = task.name;
-                    document.getElementById('start-date').value = task.startDate;
-                    document.getElementById('end-date').value = task.endDate;
-                    document.getElementById('assignee').value = task.assignee;
-                    document.getElementById('status').value = task.status;
-                    
-                    // Set color radio
-                    const radios = document.getElementsByName('color');
-                    for (let r of radios) {
-                        if (r.value === task.color) r.checked = true;
-                    }
-                }
-            } else {
-                title.innerText = 'Add New Task';
-                document.getElementById('task-id').value = '';
-                
-                // Reset dates to today/tomorrow
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('start-date').value = today;
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                document.getElementById('end-date').value = tomorrow.toISOString().split('T')[0];
-            }
-            
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('task-modal').classList.add('hidden');
-        }
-
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            
-            const id = document.getElementById('task-id').value;
-            const name = document.getElementById('task-name').value;
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-            const assignee = document.getElementById('assignee').value;
-            const status = document.getElementById('status').value;
-            
-            let color = 'blue';
-            const radios = document.getElementsByName('color');
-            for (let r of radios) {
-                if (r.checked) color = r.value;
-            }
-
-            // Validation
-            if (new Date(startDate) > new Date(endDate)) {
-                // Using standard alert here purely for crucial date validation fallback as per browser norms, 
-                // but building a custom toast is better. Let's use custom logic if preferred, 
-                // however the instructions said "Never use alert()". I will create a custom simple validation.
-                const btn = e.submitter;
-                const origText = btn.innerText;
-                btn.innerText = "End date must be after Start date";
-                btn.classList.replace('bg-primary', 'bg-rose-500');
-                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-rose-600');
-                setTimeout(() => {
-                    btn.innerText = origText;
-                    btn.classList.replace('bg-rose-500', 'bg-primary');
-                    btn.classList.replace('hover:bg-rose-600', 'hover:bg-indigo-700');
-                }, 3000);
-                return;
-            }
-
-            const taskData = {
-                id: id || Date.now().toString(), // Generate simple unique ID
-                name,
-                startDate,
-                endDate,
-                assignee,
-                status,
-                color
-            };
-
-            if (id) {
-                // Update existing
-                const index = tasks.findIndex(t => t.id === id);
-                if (index !== -1) tasks[index] = taskData;
-            } else {
-                // Add new
-                tasks.push(taskData);
-            }
-
-            saveData();
-            updateUI();
-            closeModal();
-        }
-
-        function editTask(id) {
-            openModal(id);
-        }
-
-        function deleteTask(id) {
-            // Since we shouldn't use confirm(), we'll just execute deletion. 
-            // In a production app, we'd build a custom confirmation modal.
-            tasks = tasks.filter(t => t.id !== id);
-            saveData();
-            updateUI();
-        }
-
-        // Utility to prevent XSS in template literals
         function escapeHTML(str) {
             return str.replace(/[&<>'"]/g, 
                 tag => ({
@@ -801,223 +1670,65 @@
             );
         }
 
-        // --- Gemini API Integration ---
-        const apiKey = ""; // Canvas provides the API key automatically
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-        // 1. AI Task Generator (Structured JSON response)
-        function openAiModal() {
-            document.getElementById('ai-prompt').value = '';
-            document.getElementById('ai-modal').classList.remove('hidden');
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
         }
 
-        function closeAiModal() {
-            document.getElementById('ai-modal').classList.add('hidden');
-        }
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+            const dataSize = pcmData.length * (bitsPerSample / 8);
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
 
-        async function handleAiGenerate(e) {
-            e.preventDefault();
-            const promptInput = document.getElementById('ai-prompt').value;
-            const btn = document.getElementById('ai-submit-btn');
-            const icon = document.getElementById('ai-btn-icon');
-            
-            if(!promptInput.trim()) return;
-
-            // UI Loading state
-            btn.disabled = true;
-            btn.classList.add('opacity-75', 'cursor-not-allowed');
-            icon.classList.remove('fa-wand-magic-sparkles');
-            icon.classList.add('fa-circle-notch', 'animate-spin');
-            btn.querySelector('span').innerText = 'Generating...';
-
-            const payload = {
-                contents: [{ parts: [{ text: `Create a high-level project plan for: "${promptInput}". Break it down into 4 to 6 logical sequential tasks.` }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                name: { type: "STRING", description: "The task name" },
-                                durationDays: { type: "INTEGER", description: "Estimated duration in days" },
-                                assignee: { type: "STRING", description: "Suggested job title or role (e.g. Designer, Developer)" }
-                            },
-                            required: ["name", "durationDays", "assignee"]
-                        }
-                    }
-                }
+            const writeStr = (v, offset, str) => {
+                for (let i = 0; i < str.length; i++) v.setUint8(offset + i, str.charCodeAt(i));
             };
 
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates[0].content) {
-                    const jsonStr = result.candidates[0].content.parts[0].text;
-                    const generatedTasks = JSON.parse(jsonStr);
-                    
-                    let currentDate = new Date();
-                    const colors = Object.keys(colorMap);
-                    
-                    generatedTasks.forEach(gt => {
-                        const startDate = currentDate.toISOString().split('T')[0];
-                        // Advance current date for the next task
-                        currentDate.setDate(currentDate.getDate() + (gt.durationDays || 1));
-                        const endDate = currentDate.toISOString().split('T')[0];
-                        
-                        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                        
-                        tasks.push({
-                            id: 'ai_' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
-                            name: gt.name,
-                            startDate: startDate,
-                            endDate: endDate,
-                            assignee: gt.assignee,
-                            status: 'pending',
-                            color: randomColor
-                        });
-                    });
-                    
-                    saveData();
-                    updateUI();
-                    closeAiModal();
-                    
-                    // Switch to timeline view to see the beautiful generation
-                    if(currentView !== 'timeline') switchView('timeline');
-                    
-                } else {
-                    throw new Error("Invalid format received from API");
-                }
-            } catch (err) {
-                console.error("AI Generation Error:", err);
-                btn.querySelector('span').innerText = 'Error! Try again.';
-                setTimeout(() => {
-                    if(!document.getElementById('ai-modal').classList.contains('hidden')) {
-                        btn.querySelector('span').innerText = 'Generate Plan';
-                    }
-                }, 3000);
-            } finally {
-                btn.disabled = false;
-                btn.classList.remove('opacity-75', 'cursor-not-allowed');
-                icon.classList.remove('fa-circle-notch', 'animate-spin');
-                icon.classList.add('fa-wand-magic-sparkles');
-                if(!document.getElementById('ai-modal').classList.contains('hidden') && btn.querySelector('span').innerText !== 'Error! Try again.') {
-                    btn.querySelector('span').innerText = 'Generate Plan';
-                }
+            writeStr(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeStr(view, 8, 'WAVE');
+            writeStr(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeStr(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
             }
+
+            return new Blob([buffer], { type: 'audio/wav' });
         }
 
-        // 2. AI Project Summary (Standard text response)
-        async function generateProjectSummary() {
-            const btnText = document.getElementById('ai-summary-text');
-            const icon = document.getElementById('ai-summary-icon');
-            const originalText = "Generate AI Project Summary";
-
-            if (tasks.length === 0) {
-                btnText.innerText = "Add tasks to summarize!";
-                setTimeout(() => { btnText.innerText = originalText; }, 3000);
-                return;
-            }
-
-            // Loading state
-            icon.classList.remove('fa-sparkles');
-            icon.classList.add('fa-circle-notch', 'animate-spin');
-            btnText.innerText = "Analyzing progress...";
-
-            const taskData = tasks.map(t => `'${t.name}' (Status: ${t.status})`).join(', ');
-            const prompt = `Act as an expert project manager. Review the following current project tasks: ${taskData}. Provide a very concise, motivating 2-3 sentence summary of the project's overall progress and what needs focus.`;
-
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }]
-            };
-
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (text) {
-                    document.getElementById('ai-summary-content').innerText = text;
-                    document.getElementById('ai-summary-modal').classList.remove('hidden');
-                } else {
-                    throw new Error("No text response");
+                const response = await fetch(url, options);
+                if (!response.ok && retries > 0) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                return response;
             } catch (error) {
-                console.error("AI Summary Error:", error);
-                btnText.innerText = "Analysis Failed";
-            } finally {
-                icon.classList.remove('fa-circle-notch', 'animate-spin');
-                icon.classList.add('fa-sparkles');
-                setTimeout(() => { btnText.innerText = originalText; }, 2000);
-            }
-        }
-
-        // 3. AI Chat Assistant
-        function toggleChat() {
-            const panel = document.getElementById('chat-panel');
-            panel.classList.toggle('hidden');
-            panel.classList.toggle('flex');
-            if (!panel.classList.contains('hidden')) {
-                document.getElementById('chat-input').focus();
-            }
-        }
-
-        async function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message) return;
-
-            addMessageToChat(message, 'user');
-            input.value = '';
-
-            const loadingId = addMessageToChat('Thinking...', 'ai', true);
-
-            // Dynamically build the prompt context using the current JS tasks array
-            const projectContext = tasks.length > 0 
-                ? tasks.map(t => `- Task: '${t.name}' | Assignee: ${t.assignee} | Status: ${t.status} | Dates: ${t.startDate} to ${t.endDate}`).join('\n')
-                : "No tasks are currently scheduled.";
-
-            const prompt = `You are a highly capable project management assistant. Answer the user's question concisely based ONLY on the following current project schedule context. If the schedule is empty, encourage them to add tasks.\n\nCurrent Project Schedule:\n${projectContext}\n\nUser Question: ${message}`;
-
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }]
-            };
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                const aiMsgElement = document.getElementById(loadingId);
-                aiMsgElement.classList.remove('animate-pulse', 'text-slate-500', 'italic');
-                
-                if (text) {
-                    aiMsgElement.innerText = text;
-                } else {
-                    throw new Error("No text response");
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
                 }
-            } catch (error) {
-                console.error("Chat Error:", error);
-                const aiMsgElement = document.getElementById(loadingId);
-                aiMsgElement.classList.remove('animate-pulse', 'text-slate-500', 'italic');
-                aiMsgElement.classList.add('text-rose-600');
-                aiMsgElement.innerText = "Sorry, I ran into an error connecting to the AI.";
+                throw error;
             }
         }
 
@@ -1028,31 +1739,18 @@
             msgDiv.id = id;
             
             if (sender === 'user') {
-                msgDiv.className = "bg-indigo-600 text-white p-3 rounded-lg rounded-tr-none self-end max-w-[85%] whitespace-pre-wrap shadow-sm";
+                msgDiv.className = "bg-green-600 text-white p-3 rounded-lg rounded-tr-none self-end max-w-[85%] whitespace-pre-wrap shadow-sm";
             } else {
                 msgDiv.className = `bg-white border border-slate-200 text-slate-800 p-3 rounded-lg rounded-tl-none self-start max-w-[85%] whitespace-pre-wrap shadow-sm ${isLoading ? 'animate-pulse text-slate-500 italic' : ''}`;
             }
             msgDiv.innerText = text;
             messagesDiv.appendChild(msgDiv);
-            
-            // Auto-scroll to the newest message
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             return id;
         }
 
-        // Initialize chat input listener (press Enter to send)
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatInput = document.getElementById('chat-input');
-            if (chatInput) {
-                chatInput.addEventListener('keypress', function (e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        sendChatMessage();
-                    }
-                });
-            }
-        });
-
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
     </script>
 </body>
 </html>
