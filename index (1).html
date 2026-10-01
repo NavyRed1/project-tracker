@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SyncPlanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 48 48" role="img" aria-label="Full-stack layers logo">
+      <g stroke-linejoin="round" stroke-width="3">
+        <path d="M24 28L40 36L24 44L8 36Z" fill="#3fa34d" stroke="#3fa34d" opacity=".95"/>
+        <path d="M24 21L40 29L24 37L8 29Z" fill="#8aa63a" stroke="#8aa63a" opacity=".9"/>
+        <path d="M24 14L40 22L24 30L8 22Z" fill="#a8d82a" stroke="#a8d82a" opacity=".88"/>
+        <path d="M24 7L40 15L24 23L8 15Z" fill="#d4f26b" stroke="#d4f26b" opacity=".9"/>
+      </g></svg>
+    <div><h1>SyncPlanner</h1><p id="dbState">Local storage</p></div></div>
+  <div class="tools">
+    <div class="tz" role="group" aria-label="Clock">
+      <div class="ring"><svg viewBox="0 0 46 46" aria-hidden="true"><circle class="bg" cx="23" cy="23" r="18"/><circle class="fg" id="ringFg" cx="23" cy="23" r="18"/></svg><b id="clkSec">00</b></div>
+      <div class="time"><b id="clkHM">00:00</b><span id="clkDate">&nbsp;</span></div>
+      <div class="zones" role="group" aria-label="Timezone">
+        <button data-o="7" aria-pressed="true" onclick="setTz(7)">WIB</button><button data-o="8" aria-pressed="false" onclick="setTz(8)">SGT</button><button data-o="0" aria-pressed="false" onclick="setTz(0)">UTC</button><button data-o="-5" aria-pressed="false" onclick="setTz(-5)">EST</button><button data-o="1" aria-pressed="false" onclick="setTz(1)">CET</button>
+      </div></div>
+    <button class="theme" id="themeBtn" role="switch" aria-checked="false" aria-label="Switch to dark mode" onclick="toggleTheme()"><i class="cloud c1"></i><i class="cloud c2"></i><i class="star s1"></i><i class="star s2"></i><i class="star s3"></i><i class="star s4"></i><span class="knob"></span></button>
+    <div class="menu"><button class="btn" onclick="$('exportMenu').classList.toggle('hidden')">Export</button>
+      <div id="exportMenu" class="menu-list hidden"><button onclick="exportCSV()">Download CSV spreadsheet</button><button onclick="exportJSON()">Download JSON backup</button></div></div>
+    <button class="btn" onclick="showLog('history')">History</button>
+    <button class="btn" onclick="showLog('audit')">Audit log</button>
+    <button class="btn" onclick="openPal()" title="Ctrl or Cmd + K">Commands</button>
+    <button class="btn primary" onclick="openModal()">New task</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="brief"><h2 id="briefH">Welcome</h2><p id="briefP"></p></div>
+  <div class="stats">
+    <div class="stat"><b id="sTotal">0</b><span>Total projects</span></div>
+    <div class="stat"><b id="sProg">0</b><span>In progress</span></div>
+    <div class="stat"><b id="sDone">0</b><span>Completed</span></div>
+    <div class="stat flag"><b id="sUrg">0</b><span>Urgent or high priority</span></div>
+  </div>
+
+  <div class="bar">
+    <div class="tabs" role="tablist"><button class="tab" role="tab" id="tab-list" aria-selected="true" onclick="switchView('list')">Task list</button><button class="tab" role="tab" id="tab-board" aria-selected="false" onclick="switchView('board')">Board</button><button class="tab" role="tab" id="tab-timeline" aria-selected="false" onclick="switchView('timeline')">Timeline</button><button class="tab" role="tab" id="tab-calendar" aria-selected="false" onclick="switchView('calendar')">Calendar</button><button class="tab" role="tab" id="tab-workload" aria-selected="false" onclick="switchView('workload')">Workload</button><button class="tab" role="tab" id="tab-insights" aria-selected="false" onclick="switchView('insights')">Insights</button></div>
+    <div class="filters" id="filters">
+      <select class="field" id="fPri" aria-label="Filter by priority" onchange="renderAll()">
+        <option value="all">All priorities</option><option>Urgent</option><option>High</option><option>Medium</option><option>Low</option>
+      </select>
+      <input class="field" id="fSearch" oninput="renderAll()" placeholder="Search tasks or assignees" aria-label="Search">
+    </div>
+  </div>
+
+  <section id="v-list" class="panel">
+    <div class="scroll"><table>
+      <thead><tr><th>Task</th><th>Assignee</th><th>Priority</th><th>Timeline</th><th>Status</th><th class="right">Actions</th></tr></thead>
+      <tbody id="tbody"></tbody></table></div>
+    <div id="emptyList" class="empty hidden"><b>No tasks match</b>Clear the filters or add a task.</div>
+  </section>
+
+  <section id="v-board" class="hidden"><div class="board" id="boardEl"></div></section>
+  <section id="v-timeline" class="hidden"><div class="panel gantt" id="gantt"></div></section>
+  <section id="v-insights" class="hidden"><div class="ins" id="insEl"></div></section>
+
+  <section id="v-calendar" class="hidden">
+    <div class="panel">
+      <div class="calhead">
+        <div class="row"><h2 id="calTitle"></h2>
+          <button class="btn sm" onclick="moveMonth(-1)" aria-label="Previous month">Prev</button>
+          <button class="btn sm" onclick="cal=new Date();drawMonth()">Today</button>
+          <button class="btn sm" onclick="moveMonth(1)" aria-label="Next month">Next</button></div>
+        <div class="row">
+          <button class="btn sm" id="mMonth" onclick="setMode('month')">Month</button>
+          <button class="btn sm" id="mDay" onclick="setMode('day')">Day</button></div>
+      </div>
+      <div id="monthWrap"><div class="dow"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div><div class="grid" id="grid"></div></div>
+      <div id="dayWrap" class="hidden">
+        <div class="calhead" style="border-bottom:1px solid var(--line)"><div><b id="dayHead">Day schedule</b><div class="sub">Hour-by-hour allocation for the selected date</div></div>
+          <input type="date" id="dayInput" class="field" style="width:auto" onchange="drawDay()"></div>
+        <div class="hours" id="hours"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-workload" class="hidden">
+    <div class="panel"><div class="calhead"><div><b>Team workload</b><div class="sub">Allocated hours per person, measured against a 40-hour week</div></div></div>
+      <div class="people" id="people"></div></div>
+  </section>
+</main>
+
+<div id="taskModal" class="modal hidden"><div class="sheet">
+  <div class="hd"><h3 id="mTitle">New task</h3><button class="btn sm" onclick="closeModal()">Close</button></div>
+  <form onsubmit="saveTask(event)">
+    <input type="hidden" id="fId">
+    <div class="full"><label for="fName">Task name</label><input class="field" id="fName" required placeholder="Redesign landing page"></div>
+    <div class="g">
+      <div><label for="fAssignee">Assignee</label><input class="field" id="fAssignee" required placeholder="Sarah Jenkins"></div>
+      <div><label for="fPriority">Priority</label><select class="field" id="fPriority"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
+    </div>
+    <div class="g">
+      <div><label for="fStart">Start date</label><input type="date" class="field" id="fStart" required></div>
+      <div><label for="fEnd">End date</label><input type="date" class="field" id="fEnd" required></div>
+    </div>
+    <div class="g">
+      <div><label for="fHours">Time commitment (hours)</label><input type="number" class="field" id="fHours" min="1" max="168" value="8" required></div>
+      <div><label for="fHour">Daily start time</label><select class="field" id="fHour"><option value="8">08:00</option><option value="9" selected>09:00</option><option value="10">10:00</option><option value="13">13:00</option><option value="15">15:00</option></select></div>
+    </div>
+    <div class="g">
+      <div><label for="fStatus">Status</label><select class="field" id="fStatus"><option>Planned</option><option>In Progress</option><option>Completed</option><option>Delayed</option></select></div>
+      <div><label for="fColor">Color</label><select class="field" id="fColor">
+        <option value="#1f6f3a">Forest</option><option value="#3fa34d">Green</option><option value="#6cc79a">Mint</option><option value="#a8d82a">Lime</option><option value="#8aa63a">Avocado</option><option value="#6b7d2a">Olive</option><option value="#8fae8b">Sage</option><option value="#c9e84a">Chartreuse</option></select></div>
+    </div>
+    <div class="full"><label for="subIn">Checklist</label>
+      <div class="row"><input class="field" id="subIn" placeholder="Add an item" onkeydown="if(event.key==='Enter'){event.preventDefault();addSub()}"><button type="button" class="btn" onclick="addSub()">Add</button></div>
+      <div class="subs" id="subs"></div></div>
+    <div class="foot"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" type="submit">Save task</button></div>
+  </form>
+</div></div>
+
+<div id="logModal" class="modal hidden"><div class="sheet wide">
+  <div class="hd"><h3 id="logTitle"></h3><button class="btn sm" onclick="$('logModal').classList.add('hidden')">Close</button></div>
+  <div class="log" id="logBody"></div>
+</div></div>
+<div id="pal" class="modal pal hidden" onclick="if(event.target===this)this.classList.add('hidden')"><div class="pbox">
+  <input id="palIn" placeholder="Type a command or a task name" aria-label="Command palette" oninput="palIdx=0;drawPal()"><div class="pl" id="palList"></div></div></div>
+<div id="toast" class="hidden" role="status"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
+const store=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const K={t:'syncplanner_v2_tasks',h:'syncplanner_v2_history',a:'syncplanner_v2_audit'};
+
+const off=n=>{const d=new Date();d.setDate(d.getDate()+n);return ymd(d)};
+const S=(...a)=>a.map((x,i)=>({text:x.replace(/^\+/,''),done:!x.startsWith('+')}));
+let tasks=load(K.t,[
+ {id:'TSK-101',name:'Brand identity and color palette redesign',assignee:'Alex Morgan',priority:'Urgent',start:off(-2),end:off(6),hours:16,startHour:9,status:'In Progress',color:'#3fa34d',subtasks:[{text:'Define primary tokens',done:true},{text:'Create gradient assets',done:false}]},
+ {id:'TSK-102',name:'API gateway and database migration',assignee:'David Chen',priority:'High',start:off(1),end:off(12),hours:24,startHour:10,status:'In Progress',color:'#8aa63a',subtasks:[{text:'Schema review',done:true},{text:'Write migration scripts',done:false},{text:'Dry run on staging',done:false}]},
+ {id:'TSK-103',name:'Quarterly stakeholder report',assignee:'Sarah Jenkins',priority:'Medium',start:off(-9),end:off(-4),hours:10,startHour:13,status:'Completed',color:'#a8d82a',subtasks:[{text:'Compile metrics',done:true},{text:'Send for review',done:true}]},
+ {id:'TSK-104',name:'Mobile onboarding flow',assignee:'Priya Nair',priority:'High',start:off(3),end:off(16),hours:20,startHour:9,status:'Planned',color:'#6cc79a',subtasks:[]},
+ {id:'TSK-105',name:'Payment provider integration',assignee:'David Chen',priority:'Urgent',start:off(-6),end:off(-1),hours:18,startHour:10,status:'Delayed',color:'#1f6f3a',subtasks:[{text:'Sandbox keys',done:true},{text:'Webhook handlers',done:false}]},
+ {id:'TSK-106',name:'Customer research interviews',assignee:'Sarah Jenkins',priority:'Medium',start:off(0),end:off(9),hours:12,startHour:13,status:'In Progress',color:'#c9e84a',subtasks:[{text:'Recruit participants',done:true},{text:'Run sessions',done:false}]},
+ {id:'TSK-107',name:'Launch page copywriting',assignee:'Alex Morgan',priority:'Low',start:off(5),end:off(11),hours:8,startHour:15,status:'Planned',color:'#8fae8b',subtasks:[]}]);
+let history=load(K.h,[{title:'Alpha release MVP',date:'2026-09-15',details:'Initial release launched.'}]);
+let auditLog=load(K.a,[{timestamp:'2026-10-01 08:00:00',action:'SYSTEM_INIT',details:'SyncPlanner initialized.'}]);
+let subs=[],tzOff=7,cal=new Date(),mode='month';
+
+/* data layer: Java REST API when reachable, localStorage otherwise */
+let online=false;
+const API=(window.SYNC_API||'http://localhost:8080')+'/api';
+async function api(p,o={}){const r=await fetch(API+p,{headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout?AbortSignal.timeout(3000):undefined,...o});if(!r.ok)throw new Error(r.status);return r.status===204?null:r.json()}
+function setDb(){const el=$('dbState');el.textContent=online?'Java API connected':'Local storage';el.classList.toggle('live',online)}
+function audit(action,details){auditLog.unshift({timestamp:new Date().toISOString().replace('T',' ').slice(0,19),action,details});store(K.a,auditLog);if(online)api('/audit',{method:'POST',body:JSON.stringify({action,details})}).catch(()=>{})}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.add('hidden'),2600)}
+
+/* theme */
+function isDark(){const t=document.documentElement.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches}
+function syncThemeBtn(){const b=$('themeBtn'),d=isDark();b.setAttribute('aria-checked',d);b.setAttribute('aria-label',d?'Switch to light mode':'Switch to dark mode')}
+function toggleTheme(){
+  const n=isDark()?'light':'dark',root=document.documentElement;
+  const apply=()=>{root.dataset.theme=n;try{localStorage.setItem('syncplanner_theme',n)}catch(e){}syncThemeBtn()};
+  audit('THEME_CHANGE','Theme set to '+n);
+  if(!document.startViewTransition||matchMedia('(prefers-reduced-motion:reduce)').matches){apply();return}
+  /* the new theme spreads outward from the switch */
+  const r=$('themeBtn').getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,R=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+  document.startViewTransition(apply).ready.then(()=>root.animate({clipPath:['circle(0px at '+x+'px '+y+'px)','circle('+R+'px at '+x+'px '+y+'px)']},{duration:750,easing:'cubic-bezier(.65,0,.35,1)',pseudoElement:'::view-transition-new(root)'})).catch(()=>{});
+}
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncThemeBtn);
+try{const s=localStorage.getItem('syncplanner_theme');if(s)document.documentElement.dataset.theme=s}catch(e){}
+
+/* clock */
+function tick(){
+  const t=new Date(Date.now()+tzOff*3600000),p=n=>String(n).padStart(2,'0'),s=t.getUTCSeconds(),fg=$('ringFg');
+  $('clkHM').textContent=p(t.getUTCHours())+':'+p(t.getUTCMinutes());$('clkSec').textContent=p(s);
+  $('clkDate').textContent=t.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'})+', GMT'+(tzOff>=0?'+':'')+tzOff;
+  fg.style.transition=s===0?'none':'';fg.style.strokeDashoffset=113.1*(1-(s+1)/60);
+}
+function setTz(o){tzOff=o;document.querySelectorAll('.zones button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.o===o));tick();audit('TIMEZONE_CHANGE','Timezone set to GMT'+(o>=0?'+':'')+o)}
+
+/* views */
+const VIEWS=['list','board','timeline','calendar','workload','insights'];let view='list';
+function switchView(v){
+  view=v;
+  VIEWS.forEach(n=>{$('v-'+n).classList.toggle('hidden',n!==v);$('tab-'+n).setAttribute('aria-selected',n===v)});
+  $('filters').classList.toggle('hidden',!['list','board','timeline'].includes(v));
+  drawView();
+}
+function drawView(){({board:drawBoard,timeline:drawTimeline,calendar:()=>setMode(mode),workload:drawWorkload,insights:drawInsights}[view]||(()=>{}))()}
+function renderAll(){renderTasks();drawView()}
+function setMode(m){
+  mode=m;$('monthWrap').classList.toggle('hidden',m!=='month');$('dayWrap').classList.toggle('hidden',m!=='day');
+  $('mMonth').classList.toggle('primary',m==='month');$('mDay').classList.toggle('primary',m==='day');
+  m==='month'?drawMonth():drawDay();
+}
+function moveMonth(d){cal.setDate(1);cal.setMonth(cal.getMonth()+d);drawMonth()}
+
+function drawMonth(){
+  const y=cal.getFullYear(),m=cal.getMonth(),today=ymd(new Date());
+  $('calTitle').textContent=cal.toLocaleString('en',{month:'long',year:'numeric'});
+  let h='';
+  for(let i=0;i<new Date(y,m,1).getDay();i++)h+='<div class="cell off"></div>';
+  for(let d=1,n=new Date(y,m+1,0).getDate();d<=n;d++){
+    const s=y+'-'+pad(m+1)+'-'+pad(d);
+    const chips=tasks.filter(t=>s>=t.start&&s<=t.end).map(t=>`<div class="chip" style="border-color:${esc(t.color)}">${esc(t.name)}</div>`).join('');
+    h+=`<div class="cell${s===today?' today':''}" onclick="openDay('${s}')"><span class="d">${d}</span>${chips}</div>`;
+  }
+  $('grid').innerHTML=h;
+}
+function openDay(s){$('dayInput').value=s;setMode('day')}
+function drawDay(){
+  const s=$('dayInput').value||ymd(new Date());$('dayInput').value=s;
+  $('dayHead').textContent='Schedule for '+s;
+  const act=tasks.filter(t=>s>=t.start&&s<=t.end);let h='';
+  for(let hr=0;hr<24;hr++){
+    const b=act.filter(t=>hr>=(+t.startHour||9)&&hr<(+t.startHour||9)+(+t.hours||8))
+      .map(t=>`<div class="blk" style="border-color:${esc(t.color)}"><span>${esc(t.name)}</span><span>${t.hours||8}h total</span></div>`).join('');
+    h+=`<div class="hr"><time>${pad(hr)}:00</time>${b||'<span class="sub">Free</span>'}</div>`;
+  }
+  $('hours').innerHTML=h;
+}
+function drawWorkload(){
+  const m={};tasks.forEach(t=>{(m[t.assignee]=m[t.assignee]||{c:0,h:0,t:[]});m[t.assignee].c++;m[t.assignee].h+=+t.hours||8;m[t.assignee].t.push(t)});
+  const names=Object.keys(m);
+  $('people').innerHTML=names.length?names.map(n=>{const d=m[n],p=Math.min(100,d.h/40*100);
+    return `<div class="person"><div><b>${esc(n)}</b><div class="sub">${d.c} ${d.c===1?'task':'tasks'}</div></div>
+    <div><div class="meter" title="${d.h} of 40 hours"><div style="width:${p}%;${d.h>40?'background:var(--bad)':''}"></div></div><div class="sub" style="margin-top:6px">${d.t.map(t=>esc(t.name)).join(', ')}</div></div>
+    <div class="right"><b>${d.h}</b> <span class="sub">hours</span></div></div>`}).join(''):'<div class="empty"><b>No assignees yet</b>Add a task to see workload.</div>';
+}
+
+/* list */
+function renderTasks(){
+  const q=$('fSearch').value.toLowerCase(),p=$('fPri').value;
+  const rows=tasks.filter(t=>(t.name.toLowerCase().includes(q)||t.assignee.toLowerCase().includes(q))&&(p==='all'||t.priority===p));
+  $('emptyList').classList.toggle('hidden',rows.length>0);
+  $('tbody').innerHTML=rows.map(t=>`<tr>
+   <td><div class="name"><i style="background:${esc(t.color)}"></i><div><b>${esc(t.name)}</b><span class="sub">${esc(t.id)}${t.subtasks&&t.subtasks.length?' &middot; '+t.subtasks.filter(s=>s.done).length+'/'+t.subtasks.length+' done':''}</span></div></div></td>
+   <td>${esc(t.assignee)}</td>
+   <td><span class="pri-${esc(t.priority)}">${esc(t.priority)}</span></td>
+   <td>${esc(t.start)} to ${esc(t.end)}<div class="sub">${t.hours||8} hrs from ${pad(t.startHour||9)}:00</div></td>
+   <td><span class="st-${esc(t.status)}"><span class="dot"></span>${esc(t.status)}</span></td>
+   <td class="right"><button class="btn sm" onclick="editTask('${esc(t.id)}')">Edit</button> <button class="btn sm danger" onclick="deleteTask('${esc(t.id)}')">Delete</button></td></tr>`).join('');
+  stats();
+}
+function stats(){brief();
+  $('sTotal').textContent=tasks.length;
+  $('sProg').textContent=tasks.filter(t=>t.status==='In Progress').length;
+  $('sDone').textContent=tasks.filter(t=>t.status==='Completed').length;
+  $('sUrg').textContent=tasks.filter(t=>t.priority==='Urgent'||t.priority==='High').length;
+}
+
+/* modal */
+function openModal(){
+  $('mTitle').textContent='New task';$('fId').value='';
+  document.querySelector('#taskModal form').reset();
+  subs=[];drawSubs();$('taskModal').classList.remove('hidden');$('fName').focus();
+}
+function closeModal(){$('taskModal').classList.add('hidden')}
+function editTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  $('mTitle').textContent='Edit '+t.id;$('fId').value=t.id;$('fName').value=t.name;$('fAssignee').value=t.assignee;
+  $('fPriority').value=t.priority;$('fStart').value=t.start;$('fEnd').value=t.end;$('fHours').value=t.hours||8;
+  $('fHour').value=t.startHour||9;$('fStatus').value=t.status;$('fColor').value=t.color;
+  subs=(t.subtasks||[]).map(s=>({...s}));drawSubs();$('taskModal').classList.remove('hidden');
+}
+function addSub(){const i=$('subIn');if(!i.value.trim())return;subs.push({text:i.value.trim(),done:false});i.value='';drawSubs()}
+function drawSubs(){
+  $('subs').innerHTML=subs.map((s,i)=>`<div><label style="margin:0;display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" ${s.done?'checked':''} onchange="subs[${i}].done=this.checked;drawSubs()"><span${s.done?' style="text-decoration:line-through;color:var(--mute)"':''}>${esc(s.text)}</span></label><button type="button" aria-label="Remove item" onclick="subs.splice(${i},1);drawSubs()">Remove</button></div>`).join('');
+}
+async function refresh(){
+  if(online){try{[tasks,history,auditLog]=await Promise.all([api('/tasks'),api('/history'),api('/audit')])}catch(e){online=false;setDb()}}
+  renderTasks();drawView();
+}
+async function saveTask(e){
+  e.preventDefault();
+  const id=$('fId').value,v=x=>$(x).value;
+  if(v('fEnd')<v('fStart')){toast('End date must be on or after the start date');return}
+  const t={name:v('fName'),assignee:v('fAssignee'),priority:v('fPriority'),start:v('fStart'),end:v('fEnd'),hours:parseInt(v('fHours'))||8,startHour:parseInt(v('fHour'))||9,status:v('fStatus'),color:v('fColor'),subtasks:subs};
+  if(online){
+    try{await api(id?'/tasks/'+encodeURIComponent(id):'/tasks',{method:id?'PUT':'POST',body:JSON.stringify(t)});closeModal();await refresh();return}
+    catch(err){online=false;setDb();toast('Java API unreachable, using local storage')}
+  }
+  if(id){
+    const i=tasks.findIndex(x=>x.id===id);
+    if(i>-1){
+      if(t.status==='Completed'&&tasks[i].status!=='Completed'){history.unshift({title:t.name,date:ymd(new Date()),details:'Completed by '+t.assignee});store(K.h,history)}
+      tasks[i]={id,...t};audit('UPDATE_TASK','Updated '+id+' ('+t.name+')');
+    }
+  }else{
+    let nid;do{nid='TSK-'+Math.floor(100+Math.random()*900)}while(tasks.some(x=>x.id===nid));
+    tasks.push({id:nid,...t});audit('CREATE_TASK','Created '+nid+' ('+t.name+')');
+  }
+  store(K.t,tasks);closeModal();await refresh();
+}
+async function deleteTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  if(!confirm('Delete "'+t.name+'"? This cannot be undone.'))return;
+  if(online){
+    try{await api('/tasks/'+encodeURIComponent(id),{method:'DELETE'});await refresh();return}
+    catch(err){online=false;setDb();toast('Java API unreachable, using local storage')}
+  }
+  tasks=tasks.filter(x=>x.id!==id);store(K.t,tasks);audit('DELETE_TASK','Deleted '+id+' ('+t.name+')');await refresh();
+}
+
+/* logs */
+function showLog(kind){
+  const h=kind==='history';
+  $('logTitle').textContent=h?'Completed projects':'Audit log';
+  const list=h?history:auditLog;
+  $('logBody').innerHTML=list.length?list.map(x=>h
+    ?`<div><div><b>${esc(x.title)}</b><div class="sub">${esc(x.details)}</div></div><span class="sub">${esc(x.date)}</span></div>`
+    :`<div><div><b>${esc(x.action)}</b><div class="sub">${esc(x.details)}</div></div><span class="sub">${esc(x.timestamp)}</span></div>`).join('')
+    :'<div class="empty"><b>Nothing logged yet</b></div>';
+  $('logModal').classList.remove('hidden');
+}
+
+/* ---- briefing, board, timeline, insights, palette ---- */
+const COLS=['Planned','In Progress','Delayed','Completed'];
+const pct=t=>t.status==='Completed'?100:(t.subtasks&&t.subtasks.length?Math.round(t.subtasks.filter(s=>s.done).length/t.subtasks.length*100):0);
+const ini=n=>n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+function visible(){const q=$('fSearch').value.toLowerCase(),p=$('fPri').value;return tasks.filter(t=>(t.name.toLowerCase().includes(q)||t.assignee.toLowerCase().includes(q))&&(p==='all'||t.priority===p))}
+function brief(){
+  const h=new Date(Date.now()+tzOff*3600000).getUTCHours(),td=ymd(new Date()),wk=ymd(new Date(Date.now()+7*864e5));
+  const open=tasks.filter(t=>t.status!=='Completed'),late=open.filter(t=>t.end<td).length,soon=open.filter(t=>t.end>=td&&t.end<=wk).length;
+  $('briefH').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+', team';
+  $('briefP').textContent=open.length?soon+' due in the next 7 days'+(late?', '+late+' overdue':'')+'. '+open.length+' of '+tasks.length+' projects still open.':'Everything is done. Nice work.';
+}
+function drawBoard(){
+  const rows=visible(),td=ymd(new Date());
+  $('boardEl').innerHTML=COLS.map(c=>{const items=rows.filter(t=>t.status===c);
+    return `<div class="col" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropCard(event,'${c}')"><h3>${c}<span>${items.length}</span></h3>${items.map(t=>{const late=t.end<td&&c!=='Completed';
+      return `<div class="card" draggable="true" style="--c:${esc(t.color)}" ondragstart="event.dataTransfer.setData('text/plain','${esc(t.id)}');this.classList.add('drag')" ondragend="this.classList.remove('drag')" onclick="editTask('${esc(t.id)}')"><b>${esc(t.name)}</b><div class="prog"><i style="width:${pct(t)}%"></i></div><div class="meta"><span class="${late?'late':''}">${late?'Overdue, ':'Due '}${esc(t.end)}</span><span class="av" title="${esc(t.assignee)}">${esc(ini(t.assignee))}</span></div></div>`}).join('')||'<div class="sub" style="padding:8px 4px">Drop a card here</div>'}</div>`}).join('');
+}
+function dropCard(e,s){e.preventDefault();e.currentTarget.classList.remove('over');moveTask(e.dataTransfer.getData('text/plain'),s)}
+async function moveTask(id,status){
+  const t=tasks.find(x=>x.id===id);if(!t||t.status===status)return;
+  if(online){try{const b={...t,status};delete b.id;await api('/tasks/'+encodeURIComponent(id),{method:'PUT',body:JSON.stringify(b)});await refresh();return}catch(e){online=false;setDb();toast('Java API unreachable, using local storage')}}
+  if(status==='Completed'){history.unshift({title:t.name,date:ymd(new Date()),details:'Completed by '+t.assignee});store(K.h,history)}
+  t.status=status;store(K.t,tasks);audit('UPDATE_TASK','Moved '+id+' to '+status);await refresh();
+}
+function drawTimeline(){
+  const rows=visible(),box=$('gantt');
+  if(!rows.length){box.innerHTML='<div class="empty" style="grid-column:1/-1"><b>Nothing to plan yet</b>Add a task to see it on the timeline.</div>';return}
+  const D=s=>Date.parse(s+'T00:00:00Z')/864e5,W=30,td=D(ymd(new Date()));
+  const a=Math.min(...rows.map(t=>D(t.start)),td)-2,b=Math.max(...rows.map(t=>D(t.end)),td)+5,n=b-a+1;
+  let head='';
+  for(let i=0;i<n;i++){const d=new Date((a+i)*864e5),w=d.getUTCDay();head+=`<div class="gd${w%6===0?' we':''}${a+i===td?' td':''}">${i===0||d.getUTCDate()===1?'<em>'+d.toLocaleString('en',{month:'short',timeZone:'UTC'})+'</em>':''}<span>${d.getUTCDate()}</span></div>`}
+  box.innerHTML=`<div class="gl"><div class="gh"></div>${rows.map(t=>`<div><b>${esc(t.name)}</b><span class="sub">${esc(t.assignee)}, ${pct(t)}% done</span></div>`).join('')}</div><div class="gr"><div class="gin" style="--n:${n};--w:${W}px"><div class="gh2">${head}</div><div class="gbody">${rows.map(t=>`<div class="grow"><div class="gbar" style="--c:${esc(t.color)};left:${(D(t.start)-a)*W+2}px;width:${(D(t.end)-D(t.start)+1)*W-4}px" onclick="editTask('${esc(t.id)}')" title="${esc(t.start)} to ${esc(t.end)}"><i style="width:${pct(t)}%"></i><span>${esc(t.name)}</span></div></div>`).join('')}<div class="tline" style="left:${(td-a)*W+W/2-1}px"></div></div></div></div>`;
+  box.querySelector('.gr').scrollLeft=Math.max(0,(td-a)*W-120);
+}
+function drawInsights(){
+  const td=ymd(new Date()),all=tasks,done=all.filter(t=>t.status==='Completed').length,rate=all.length?Math.round(done/all.length*100):0,C=2*Math.PI*48;
+  const by={};all.forEach(t=>by[t.assignee]=(by[t.assignee]||0)+(+t.hours||8));
+  const mx=Math.max(1,...Object.values(by));
+  const att=all.filter(t=>t.status!=='Completed').map(t=>({t,d:Math.round((Date.parse(t.end)-Date.parse(td))/864e5)})).filter(x=>x.d<=7).sort((p,q)=>p.d-q.d);
+  $('insEl').innerHTML=`<div class="panel"><h3>Delivery</h3><div class="donut"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="tr" cx="60" cy="60" r="48"/><circle class="pg" cx="60" cy="60" r="48" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-rate/100)}"/></svg><div><b>${rate}%</b><span class="sub">${done} of ${all.length} projects completed</span></div></div></div>
+  <div class="panel"><h3>Status mix</h3>${COLS.map(c=>{const n=all.filter(t=>t.status===c).length;return `<div class="hb"><span>${c}</span><div class="meter"><div style="width:${all.length?n/all.length*100:0}%"></div></div><b>${n}</b></div>`}).join('')}</div>
+  <div class="panel"><h3>Hours by person</h3>${Object.entries(by).map(([n,h])=>`<div class="hb"><span>${esc(n)}</span><div class="meter"><div style="width:${h/mx*100}%"></div></div><b>${h}h</b></div>`).join('')||'<span class="sub">No data yet</span>'}</div>
+  <div class="panel"><h3>Needs attention</h3>${att.map(({t,d})=>`<div class="att"><span><b>${esc(t.name)}</b><br><span class="sub">${esc(t.assignee)}</span></span><span class="${d<0?'late':'sub'}">${d<0?(-d)+' days overdue':d===0?'Due today':'Due in '+d+' days'}</span></div>`).join('')||'<span class="sub">Nothing due soon. You are clear.</span>'}</div>`;
+}
+let palIdx=0,palList=[];
+function cmds(){return[['New task','Create',()=>openModal()],...VIEWS.map(v=>['Go to '+(v==='list'?'task list':v),'View',()=>switchView(v)]),['Toggle dark mode','Theme',()=>toggleTheme()],['Download CSV','Export',()=>exportCSV()],['Download JSON backup','Export',()=>exportJSON()],['Open history','Log',()=>showLog('history')],['Open audit log','Log',()=>showLog('audit')],...tasks.map(t=>['Edit '+t.name,t.id,()=>editTask(t.id)])]}
+function openPal(){$('pal').classList.remove('hidden');$('palIn').value='';palIdx=0;drawPal();$('palIn').focus()}
+function drawPal(){
+  const q=$('palIn').value.toLowerCase();palList=cmds().filter(c=>c[0].toLowerCase().includes(q)).slice(0,9);palIdx=Math.min(palIdx,Math.max(0,palList.length-1));
+  $('palList').innerHTML=palList.map((c,i)=>`<button class="${i===palIdx?'on':''}" onclick="runPal(${i})">${esc(c[0])}<span>${esc(c[1])}</span></button>`).join('')||'<div class="sub" style="padding:12px">No match</div>';
+}
+function runPal(i){const c=palList[i];$('pal').classList.add('hidden');if(c)c[2]()}
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPal();return}
+  if(e.key==='Escape')$('pal').classList.add('hidden');
+  if($('pal').classList.contains('hidden'))return;
+  if(e.key==='ArrowDown'){e.preventDefault();palIdx=Math.min(palIdx+1,palList.length-1);drawPal()}
+  else if(e.key==='ArrowUp'){e.preventDefault();palIdx=Math.max(palIdx-1,0);drawPal()}
+  else if(e.key==='Enter'){e.preventDefault();runPal(palIdx)}
+});
+async function saveFile(name,data,type){
+  const dl=window.claude?await claude.use('downloads').catch(()=>null):null;
+  if(dl){await dl.save({filename:name,data});return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function exportJSON(){
+  $('exportMenu').classList.add('hidden');
+  try{await saveFile('SyncPlanner_Backup.json',JSON.stringify({tasks,history},null,2),'application/json');audit('EXPORT_JSON','Exported JSON backup.');toast('Backup saved')}
+  catch(e){if(!e||e.code!=='declined')toast('Could not save the file')}
+}
+
+/* export */
+async function exportCSV(){
+  $('exportMenu').classList.add('hidden');
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const csv=['Task ID,Project name,Assignee,Priority,Start date,End date,Hours,Status']
+    .concat(tasks.map(t=>[t.id,t.name,t.assignee,t.priority,t.start,t.end,t.hours||8,t.status].map(q).join(','))).join('\n');
+  try{
+    await saveFile('SyncPlanner_Report.csv',csv,'text/csv');
+    audit('EXPORT_CSV','Exported tasks to CSV.');toast('CSV saved');
+  }catch(e){if(!e||e.code!=='declined')toast('Could not save the file')}
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.menu'))$('exportMenu').classList.add('hidden')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();$('logModal').classList.add('hidden')}});
+
+async function boot(){
+  $('dayInput').value=ymd(new Date());
+  try{[tasks,history,auditLog]=await Promise.all([api('/tasks'),api('/history'),api('/audit')]);online=true}catch(e){online=false}
+  setDb();syncThemeBtn();renderTasks();tick();setInterval(tick,1000);
+  audit('APP_LOADED','Application loaded.');
+}
+boot();
+</script>
+</body>
+</html>
